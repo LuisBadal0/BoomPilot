@@ -216,7 +216,7 @@
       }
 
       .panel {
-        padding: 14px;
+        padding: 10px;
         background: var(--surface-2);
         border: 1px solid var(--border);
         border-radius: 16px;
@@ -227,7 +227,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        margin-bottom: 10px;
+        margin-bottom: 6px;
       }
 
       .label {
@@ -250,7 +250,7 @@
         display: grid;
         grid-template-columns: repeat(5, 1fr);
         gap: 8px;
-        margin-top: 12px;
+        margin-top: 8px;
       }
 
       .preset,
@@ -286,7 +286,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        margin-top: 12px;
+        margin-top: 8px;
       }
 
       .toolbar-label {
@@ -567,22 +567,8 @@
 
         <div class="topbar-right">
           <label class="theme-switch" aria-label="Theme switch">
-            <input
-              id="themeToggle"
-              type="checkbox"
-              role="switch"
-              aria-label="Toggle dark mode"
-            >
-            <svg
-              class="theme-icon theme-icon--sun"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
+            <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode">
+            <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="4"></circle>
               <path d="M12 2v2"></path>
               <path d="M12 20v2"></path>
@@ -593,16 +579,7 @@
               <path d="m6.34 17.66-1.41 1.41"></path>
               <path d="m19.07 4.93-1.41 1.41"></path>
             </svg>
-            <svg
-              class="theme-icon theme-icon--moon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
+            <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"></path>
             </svg>
             <span class="theme-thumb" aria-hidden="true"></span>
@@ -631,43 +608,15 @@
         <div class="toolbar">
           <div class="toolbar-label">Quick actions</div>
           <div class="icon-actions">
-            <button
-              id="reset"
-              class="icon-btn icon-primary"
-              type="button"
-              aria-label="Reset volume to 100"
-              title="Reset to 100"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
+            <button id="reset" class="icon-btn icon-primary" type="button" aria-label="Reset volume to 100" title="Reset to 100">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 12a9 9 0 1 0 3-6.7"></path>
                 <path d="M3 3v6h6"></path>
               </svg>
             </button>
 
-            <button
-              id="mute"
-              class="icon-btn icon-danger"
-              type="button"
-              aria-label="Mute current tab"
-              title="Mute"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
+            <button id="mute" class="icon-btn icon-danger" type="button" aria-label="Mute current tab" title="Mute">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                 <line x1="23" y1="9" x2="17" y2="15"></line>
                 <line x1="17" y1="9" x2="23" y2="15"></line>
