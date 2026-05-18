@@ -9,13 +9,36 @@ function getOrCreateState(tabId) {
   return created;
 }
 
-async function updateBadge() {
-  const changedCount = [...tabState.values()].filter(
-    (item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0
-  ).length;
+function getBadgeTextForState(state) {
+  if (!state) return '';
+  if (state.volume === 100) return '';
+  return String(Math.round(state.volume));
+}
 
-  await browser.browserAction.setBadgeBackgroundColor({ color: '#01696f' });
-  await browser.browserAction.setBadgeText({ text: changedCount ? String(changedCount) : '' });
+async function updateBadge(tabId) {
+  if (typeof tabId !== 'number') {
+    const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
+    tabId = activeTab && activeTab.id;
+  }
+
+  if (typeof tabId !== 'number') return;
+
+  const state = getOrCreateState(tabId);
+  const text = getBadgeTextForState(state);
+
+  await browser.browserAction.setBadgeBackgroundColor({
+    tabId,
+    color: '#d96a45'
+  });
+  await browser.browserAction.setBadgeTextColor({
+    tabId,
+    color: '#ffffff'
+  });
+
+  await browser.browserAction.setBadgeText({
+    tabId,
+    text
+  });
 }
 
 browser.runtime.onMessage.addListener((message) => {
@@ -26,10 +49,16 @@ browser.runtime.onMessage.addListener((message) => {
 
   if (message.type === 'SAVE_TAB_AUDIO_STATE') {
     const state = getOrCreateState(message.tabId);
+    const previousVolume = state.volume;
+
     if (typeof message.volume === 'number') state.volume = message.volume;
     if (typeof message.voiceBoost === 'number') state.voiceBoost = message.voiceBoost;
     if (typeof message.bassBoost === 'number') state.bassBoost = message.bassBoost;
-    updateBadge();
+
+    if (state.volume !== previousVolume) {
+      updateBadge(message.tabId);
+    }
+
     return Promise.resolve({ ok: true });
   }
 
@@ -49,15 +78,21 @@ browser.runtime.onMessage.addListener((message) => {
             bassBoost: state.bassBoost
           };
         })
-        .filter(
-          (item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0
-        );
+        .filter((item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0);
 
       return { items };
     });
   }
 
   return undefined;
+});
+
+browser.tabs.onActivated.addListener(({ tabId }) => {
+  updateBadge(tabId);
+});
+
+browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'complete') updateBadge(tabId);
 });
 
 browser.tabs.onRemoved.addListener((tabId) => {
