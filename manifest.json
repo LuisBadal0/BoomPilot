@@ -1,0 +1,30 @@
+{
+  "manifest_version": 2,
+  "name": "BoomPilot",
+  "version": "0.4.0",
+  "description": "Boost, mute, and manage per-tab volume with a live badge and quick tab list.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "activeTab",
+    "<all_urls>"
+  ],
+  "browser_action": {
+    "default_title": "BoomPilot",
+    "default_popup": "popup.html",
+    "default_icon": "icon.svg"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icon.svg"
+  }
+}
