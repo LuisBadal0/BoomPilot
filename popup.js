@@ -19,6 +19,8 @@ function updateStatus(volume) {
   else if (volume === 100) status.textContent = 'Normal';
   else status.textContent = 'Boosted';
 }
+let currentActiveTabId = null;
+
 async function refreshChangedTabs(activeTabId) {
   const list = document.getElementById('changedTabs');
   const count = document.getElementById('count');
@@ -31,11 +33,14 @@ async function refreshChangedTabs(activeTabId) {
   list.innerHTML = items.map(item => `
     <div class="tab-item">
       <div class="tab-open" data-open-tab="${item.tabId}">
-        <div class="tab-title">${escapeHtml(item.title || 'Untitled tab')}${item.tabId === activeTabId ? ' • current' : ''}</div>
-        <div class="tab-url">${escapeHtml(shortUrl(item.url))}</div>
-        <div class="tab-meta">
-          <span class="pill">${item.volume}%</span>
-          ${item.audible ? '<span class="pill">Playing</span>' : ''}
+        <img class="tab-favicon" src="${escapeHtml(item.favIconUrl || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 18 18%22%3E%3Crect width=%2218%22 height=%2218%22 rx=%224%22 fill=%22%23d9d5ce%22/%3E%3Cpath d=%22M5 9h8M9 5v8%22 stroke=%22%23706c63%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/%3E%3C/svg%3E')}" alt="" />
+        <div class="tab-main">
+          <div class="tab-title">${escapeHtml(item.title || 'Untitled tab')}${item.tabId === activeTabId ? ' • current' : ''}</div>
+          <div class="tab-url">${escapeHtml(shortUrl(item.url))}</div>
+          <div class="tab-meta">
+            <span class="pill">${item.volume}%</span>
+            ${item.audible ? '<span class="pill">Playing</span>' : ''}
+          </div>
         </div>
       </div>
       <div class="mini-actions">
@@ -67,6 +72,13 @@ async function refreshChangedTabs(activeTabId) {
       event.stopPropagation();
       const tabId = Number(node.dataset.muteTab);
       await sendVolume(tabId, 0);
+      if (tabId === currentActiveTabId) {
+        const slider = document.getElementById('volume');
+        const value = document.getElementById('value');
+        slider.value = '0';
+        value.textContent = '0%';
+        updateStatus(0);
+      }
       await refreshChangedTabs(activeTabId);
     });
   }
@@ -75,6 +87,13 @@ async function refreshChangedTabs(activeTabId) {
       event.stopPropagation();
       const tabId = Number(node.dataset.resetTab);
       await sendVolume(tabId, 100);
+      if (tabId === currentActiveTabId) {
+        const slider = document.getElementById('volume');
+        const value = document.getElementById('value');
+        slider.value = '100';
+        value.textContent = '100%';
+        updateStatus(100);
+      }
       await refreshChangedTabs(activeTabId);
     });
   }
@@ -93,6 +112,7 @@ async function refreshChangedTabs(activeTabId) {
     mute.disabled = true;
     return;
   }
+  currentActiveTabId = tab.id;
   const state = await browser.runtime.sendMessage({ type: 'GET_TAB_VOLUME', tabId: tab.id });
   const current = state && typeof state.volume === 'number' ? state.volume : 100;
   slider.value = String(current);

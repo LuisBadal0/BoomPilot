@@ -44,6 +44,7 @@ browser.runtime.onMessage.addListener(async (message) => {
         tabId: tab.id,
         title: tab.title || 'Untitled tab',
         url: tab.url || '',
+        favIconUrl: tab.favIconUrl || '',
         audible: !!tab.audible,
         volume: tabVolumes.get(tab.id)
       }))

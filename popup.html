@@ -66,9 +66,11 @@
     .tab-item {
       display:grid; grid-template-columns:1fr auto; gap:10px; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--surface);
     }
-    .tab-open { cursor:pointer; }
+    .tab-open { cursor:pointer; display:flex; align-items:flex-start; gap:10px; }
     .tab-open:hover { background:color-mix(in srgb, var(--surface) 70%, var(--surface-2)); }
-    .tab-title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+    .tab-favicon { width:18px; height:18px; border-radius:4px; flex:0 0 18px; margin-top:2px; background:var(--surface-2); border:1px solid var(--border); object-fit:contain; }
+    .tab-main { min-width:0; }
+    .tab-title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
     .tab-url { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; margin-top:2px; }
     .tab-meta { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
     .pill { font-size:11px; font-weight:800; color:var(--primary); background:var(--pill); border-radius:999px; padding:4px 8px; }
