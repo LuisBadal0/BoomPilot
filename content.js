@@ -1,89 +1,95 @@
 const mediaState = new WeakMap();
-let currentVolume = 100;
 
-function muteMedia(media, shouldMute) {
-  try { media.muted = shouldMute; } catch (error) {}
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
-function syncEffectiveGain(media, state) {
-  if (!state || !state.gainNode) return;
-  const elementVolume = Math.max(0, Math.min(1, Number(media.volume) || 0));
-  const extensionGain = Math.max(0, Math.min(5, currentVolume / 100));
-  state.gainNode.gain.value = state.userMuted ? 0 : elementVolume * extensionGain;
-}
-
-function setupMediaElement(media) {
+function createNodes(media) {
   if (mediaState.has(media)) return mediaState.get(media);
+
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) {
-    const fallback = { fallback: true, userMuted: false };
-    mediaState.set(media, fallback);
-    return fallback;
-  }
+  if (!AudioContextClass) return null;
+
   const context = new AudioContextClass();
   const source = context.createMediaElementSource(media);
-  const gainNode = context.createGain();
-  source.connect(gainNode);
-  gainNode.connect(context.destination);
+  const voice = context.createBiquadFilter();
+  const bass = context.createBiquadFilter();
+  const gain = context.createGain();
 
-  const state = { context, gainNode, source, userMuted: false };
-  mediaState.set(media, state);
+  voice.type = 'peaking';
+  voice.frequency.value = 2500;
+  voice.Q.value = 1.2;
+  voice.gain.value = 0;
 
-  const resume = () => { if (context.state === 'suspended') context.resume().catch(() => {}); };
-  const onVolumeChange = () => {
-    state.userMuted = !!media.muted;
-    syncEffectiveGain(media, state);
+  bass.type = 'lowshelf';
+  bass.frequency.value = 200;
+  bass.gain.value = 0;
+
+  gain.gain.value = 1;
+
+  source.connect(voice);
+  voice.connect(bass);
+  bass.connect(gain);
+  gain.connect(context.destination);
+
+  const state = {
+    context,
+    source,
+    voice,
+    bass,
+    gain,
+    media,
+    volume: 100,
+    voiceBoost: 0,
+    bassBoost: 0
   };
 
-  media.addEventListener('play', resume, { passive: true });
-  media.addEventListener('volumechange', onVolumeChange, { passive: true });
-  window.addEventListener('click', resume, { passive: true, once: true });
+  mediaState.set(media, state);
 
-  syncEffectiveGain(media, state);
+  media.addEventListener('play', () => {
+    if (context.state === 'suspended') context.resume().catch(() => {});
+  });
+
   return state;
 }
 
-function getMediaElements() {
-  return [...document.querySelectorAll('audio, video')];
-}
+function applyToMedia(media, settings) {
+  const nodes = createNodes(media);
+  if (!nodes) return;
 
-function applyVolume(volume) {
-  currentVolume = Number.isFinite(volume) ? volume : 100;
-  const shouldMute = currentVolume <= 0;
+  nodes.volume = typeof settings.volume === 'number' ? settings.volume : nodes.volume;
+  nodes.voiceBoost =
+    typeof settings.voiceBoost === 'number' ? settings.voiceBoost : nodes.voiceBoost;
+  nodes.bassBoost = typeof settings.bassBoost === 'number' ? settings.bassBoost : nodes.bassBoost;
 
-  for (const media of getMediaElements()) {
-    try {
-      const state = setupMediaElement(media);
-      if (state && state.fallback) {
-        muteMedia(media, shouldMute);
-        media.volume = shouldMute ? 0 : Math.max(0, Math.min(1, currentVolume / 100));
-      } else if (state && state.gainNode) {
-        if (shouldMute) {
-          state.userMuted = true;
-          muteMedia(media, true);
-          state.gainNode.gain.value = 0;
-        } else {
-          if (media.muted) {
-            media.muted = false;
-          }
-          state.userMuted = false;
-          syncEffectiveGain(media, state);
-        }
-      }
-    } catch (error) {
-      muteMedia(media, shouldMute);
-      media.volume = shouldMute ? 0 : Math.max(0, Math.min(1, currentVolume / 100));
-    }
+  nodes.gain.gain.value = clamp(nodes.volume / 100, 0, 5);
+  nodes.voice.gain.value = clamp((nodes.voiceBoost / 100) * 12, 0, 12);
+  nodes.bass.gain.value = clamp((nodes.bassBoost / 100) * 15, 0, 15);
+
+  if (nodes.context.state === 'suspended' && !media.paused) {
+    nodes.context.resume().catch(() => {});
   }
 }
 
-new MutationObserver(() => applyVolume(currentVolume)).observe(document.documentElement || document, { childList: true, subtree: true });
-applyVolume(currentVolume);
+function applySettings(settings) {
+  for (const media of document.querySelectorAll('audio, video')) {
+    applyToMedia(media, settings);
+  }
+}
 
 browser.runtime.onMessage.addListener((message) => {
-  if (message.type === 'SET_VOLUME') {
-    applyVolume(Number(message.volume));
-    return Promise.resolve({ ok: true });
+  if (message.type === 'SET_AUDIO_STATE') {
+    applySettings(message);
   }
-  return false;
+});
+
+const observer = new MutationObserver(() => {
+  browser.runtime
+    .sendMessage({ type: 'GET_TAB_AUDIO_STATE', tabId: browser.devtools ? undefined : null })
+    .catch(() => {});
+});
+
+observer.observe(document.documentElement || document.body, {
+  childList: true,
+  subtree: true
 });

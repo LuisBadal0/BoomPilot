@@ -1,137 +1,681 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BoomPilot</title>
-  <style>
-    :root {
-      color-scheme: light dark;
-      --bg:#f5f4ef; --surface:#ffffff; --surface-2:#f1efea; --text:#231f18; --muted:#706c63;
-      --primary:#01696f; --primary-2:#0d5157; --border:#d9d5ce; --danger:#8b2d2d; --danger-2:#6e2020;
-      --pill:#e6f1ef; --shadow:0 10px 24px rgba(26,24,19,.08);
-    }
-    @media (prefers-color-scheme: dark) {
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BoomPilot</title>
+    <style>
       :root {
-        --bg:#151412; --surface:#1d1b18; --surface-2:#24211d; --text:#ece7dd; --muted:#aca496;
-        --primary:#4f98a3; --primary-2:#3b7b84; --border:#38342f; --danger:#ba5d5d; --danger-2:#9f4848;
-        --pill:#213336; --shadow:0 12px 28px rgba(0,0,0,.3);
+        color-scheme: light;
+        --bg: #f5f4ef;
+        --surface: #ffffff;
+        --surface-2: #f1efea;
+        --text: #231f18;
+        --muted: #706c63;
+        --primary: #01696f;
+        --primary-2: #0d5157;
+        --border: #d9d5ce;
+        --danger: #8b2d2d;
+        --danger-2: #6e2020;
+        --pill: #e6f1ef;
+        --status-text: #01696f;
+        --status-bg: #e6f1ef;
+        --toggle-track: #e8e4dc;
+        --toggle-knob: #ffffff;
+        --shadow: 0 10px 24px rgba(26, 24, 19, 0.08);
       }
-    }
-    * { box-sizing:border-box; }
-    body {
-      margin:0; width:360px; font:14px/1.45 Inter,system-ui,sans-serif; background:linear-gradient(180deg,var(--bg),var(--surface-2));
-      color:var(--text); padding:16px;
-    }
-    .shell {
-      background:color-mix(in srgb, var(--surface) 92%, transparent);
-      border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:var(--shadow);
-      backdrop-filter:blur(10px);
-    }
-    .topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
-    .brand h1 { font-size:18px; margin:0; letter-spacing:-.02em; }
-    .brand p { margin:4px 0 0; color:var(--muted); font-size:13px; }
-    .status { font-size:12px; font-weight:700; color:var(--primary); background:var(--pill); border-radius:999px; padding:6px 10px; }
-    .slider-wrap { padding:14px; background:var(--surface-2); border:1px solid var(--border); border-radius:16px; }
-    .row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
-    .label { color:var(--muted); font-weight:600; }
-    .value { font-size:24px; font-weight:800; letter-spacing:-.03em; }
-    input[type="range"] { width:100%; accent-color:var(--primary); }
-    .presets { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:12px; }
-    .preset, .icon-btn, .mini-btn {
-      border:0; border-radius:12px; cursor:pointer; font-weight:700; transition:transform .14s ease, filter .14s ease, background .14s ease, border-color .14s ease;
-    }
-    .preset {
-      padding:10px 0; background:var(--surface); color:var(--text); border:1px solid var(--border);
-    }
-    .preset:hover, .icon-btn:hover, .mini-btn:hover { filter:brightness(1.03); transform:translateY(-1px); }
-    .toolbar {
-      display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px;
-    }
-    .toolbar-label {
-      color:var(--muted); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
-    }
-    .icon-actions { display:flex; gap:10px; }
-    .icon-btn {
-      width:44px; height:44px; display:grid; place-items:center; color:#fff;
-      box-shadow:0 6px 16px rgba(0,0,0,.12);
-    }
-    .icon-btn svg, .mini-btn svg { width:18px; height:18px; display:block; }
-    .icon-primary { background:linear-gradient(180deg,var(--primary),var(--primary-2)); }
-    .icon-danger { background:linear-gradient(180deg,var(--danger),var(--danger-2)); }
-    .section-head { display:flex; align-items:center; justify-content:space-between; margin:16px 0 10px; }
-    .section-head h2 { margin:0; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
-    .count { font-size:12px; color:var(--muted); }
-    .tab-list { display:grid; gap:10px; max-height:240px; overflow:auto; }
-    .tab-item {
-      display:grid; grid-template-columns:1fr auto; gap:10px; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--surface);
-    }
-    .tab-open { cursor:pointer; display:flex; align-items:flex-start; gap:10px; }
-    .tab-open:hover { background:color-mix(in srgb, var(--surface) 70%, var(--surface-2)); }
-    .tab-favicon { width:18px; height:18px; border-radius:4px; flex:0 0 18px; margin-top:2px; background:var(--surface-2); border:1px solid var(--border); object-fit:contain; }
-    .tab-main { min-width:0; }
-    .tab-title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
-    .tab-url { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; margin-top:2px; }
-    .tab-meta { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
-    .pill { font-size:11px; font-weight:800; color:var(--primary); background:var(--pill); border-radius:999px; padding:4px 8px; }
-    .mini-actions { display:grid; gap:8px; align-content:start; }
-    .mini-btn {
-      width:38px; height:38px; display:grid; place-items:center; color:#fff; border-radius:12px;
-    }
-    .mini-primary { background:var(--primary); }
-    .mini-danger { background:var(--danger); }
-    .empty { color:var(--muted); font-size:13px; padding:14px; text-align:center; background:var(--surface-2); border:1px dashed var(--border); border-radius:14px; }
-  </style>
-</head>
-<body>
-  <div class="shell">
-    <div class="topbar">
-      <div class="brand">
-        <h1>BoomPilot</h1>
-        <p>Per-tab audio control with quick actions.</p>
-      </div>
-      <div id="status" class="status">Normal</div>
-    </div>
 
-    <div class="slider-wrap">
-      <div class="row">
-        <div class="label">Current tab</div>
-        <div id="value" class="value">100%</div>
-      </div>
-      <input id="volume" type="range" min="0" max="500" step="1" value="100">
-      <div class="presets">
-        <button class="preset" data-volume="0">0</button>
-        <button class="preset" data-volume="50">50</button>
-        <button class="preset" data-volume="100">100</button>
-        <button class="preset" data-volume="200">200</button>
-        <button class="preset" data-volume="500">500</button>
-      </div>
-      <div class="toolbar">
-        <div class="toolbar-label">Quick actions</div>
-        <div class="icon-actions">
-          <button id="reset" class="icon-btn icon-primary" type="button" aria-label="Reset volume to 100%" title="Reset to 100%">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 12a9 9 0 1 0 3-6.7"/>
-              <path d="M3 3v6h6"/>
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          color-scheme: dark;
+          --bg: #151412;
+          --surface: #1d1b18;
+          --surface-2: #24211d;
+          --text: #ece7dd;
+          --muted: #aca496;
+          --primary: #4f98a3;
+          --primary-2: #3b7b84;
+          --border: #38342f;
+          --danger: #ba5d5d;
+          --danger-2: #9f4848;
+          --pill: #213336;
+          --status-text: #7ec0ca;
+          --status-bg: #213336;
+          --toggle-track: #243234;
+          --toggle-knob: #f6efe5;
+          --shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+        }
+      }
+
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #151412;
+        --surface: #1d1b18;
+        --surface-2: #24211d;
+        --text: #ece7dd;
+        --muted: #aca496;
+        --primary: #4f98a3;
+        --primary-2: #3b7b84;
+        --border: #38342f;
+        --danger: #ba5d5d;
+        --danger-2: #9f4848;
+        --pill: #213336;
+        --status-text: #7ec0ca;
+        --status-bg: #213336;
+        --toggle-track: #243234;
+        --toggle-knob: #f6efe5;
+        --shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+      }
+
+      html[data-theme="light"] {
+        color-scheme: light;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        width: 368px;
+        padding: 16px;
+        font: 14px/1.45 Inter, system-ui, sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, var(--bg), var(--surface-2));
+        transition: background 0.18s ease, color 0.18s ease;
+      }
+
+      .shell {
+        padding: 16px;
+        background: color-mix(in srgb, var(--surface) 92%, transparent);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .topbar-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+
+      .brand p {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .status {
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--status-text);
+        background: var(--status-bg);
+        border-radius: 999px;
+      }
+
+      .theme-switch {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px;
+        width: 46px;
+        height: 20px;
+        padding: 0 5px;
+        background: var(--toggle-track);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        cursor: pointer;
+        user-select: none;
+        transition:
+          background 0.18s ease,
+          border-color 0.18s ease,
+          transform 0.14s ease;
+      }
+
+      .theme-switch:hover {
+        transform: translateY(-1px);
+      }
+
+      .theme-switch:focus-within {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+
+      .theme-switch input {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .theme-switch .theme-icon {
+        position: relative;
+        z-index: 2;
+        width: 8px;
+        height: 8px;
+        color: var(--muted);
+        transition: color 0.18s ease, opacity 0.18s ease;
+      }
+
+      .theme-switch .theme-thumb {
+        position: absolute;
+        top: 1.5px;
+        left: 1.5px;
+        width: 16px;
+        height: 16px;
+        background: var(--toggle-knob);
+        border-radius: 999px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+        transition: transform 0.2s ease, background 0.18s ease;
+      }
+
+      html:not(.theme-animate) .theme-switch .theme-thumb,
+      html:not(.theme-animate) .theme-switch .theme-icon {
+        transition: none !important;
+      }
+
+      .theme-switch input:checked + .theme-icon--sun + .theme-icon--moon + .theme-thumb {
+        transform: translateX(26px);
+      }
+
+      .theme-switch input:not(:checked) + .theme-icon--sun {
+        color: var(--primary);
+        opacity: 1;
+      }
+
+      .theme-switch input:not(:checked) + .theme-icon--sun + .theme-icon--moon {
+        opacity: 0.55;
+      }
+
+      .theme-switch input:checked + .theme-icon--sun + .theme-icon--moon {
+        color: var(--primary);
+        opacity: 1;
+      }
+
+      .theme-switch input:checked + .theme-icon--sun {
+        opacity: 0.55;
+      }
+
+      .panel {
+        padding: 10px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 6px;
+      }
+
+      .label {
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .value {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--primary);
+      }
+
+      .presets {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .preset,
+      .icon-btn,
+      .mini-btn {
+        font-weight: 700;
+        cursor: pointer;
+        border: 0;
+        border-radius: 12px;
+        transition:
+          transform 0.14s ease,
+          filter 0.14s ease,
+          background 0.14s ease,
+          border-color 0.14s ease;
+      }
+
+      .preset {
+        padding: 10px 0;
+        color: var(--text);
+        background: var(--surface);
+        border: 1px solid var(--border);
+      }
+
+      .preset:hover,
+      .icon-btn:hover,
+      .mini-btn:hover {
+        filter: brightness(1.03);
+        transform: translateY(-1px);
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .toolbar-label {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .icon-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .icon-btn {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+      }
+
+      .icon-btn svg,
+      .mini-btn svg {
+        display: block;
+        width: 18px;
+        height: 18px;
+      }
+
+      .icon-primary {
+        background: linear-gradient(180deg, var(--primary), var(--primary-2));
+      }
+
+      .icon-danger {
+        background: linear-gradient(180deg, var(--danger), var(--danger-2));
+      }
+
+      .effects {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .effect-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+
+      .effect-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px;
+        list-style: none;
+        cursor: pointer;
+      }
+
+      .effect-summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .effect-summary-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .effect-card[open] .effect-summary {
+        padding-bottom: 8px;
+      }
+
+      .effect-card .preset-group {
+        padding: 0 12px 12px;
+      }
+
+      .effect-chevron {
+        font-size: 14px;
+        color: var(--muted);
+        transition: transform 0.14s ease;
+      }
+
+      .effect-card[open] .effect-chevron {
+        transform: rotate(180deg);
+      }
+
+      .effect-name {
+        font-weight: 800;
+      }
+
+      .effect-hint {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .effect-value {
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--primary);
+      }
+
+      .preset-group {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+      }
+
+      .effect-preset {
+        min-height: 34px;
+        padding: 7px 0;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--text);
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+        transition:
+          transform 0.14s ease,
+          background 0.14s ease,
+          color 0.14s ease,
+          border-color 0.14s ease;
+      }
+
+      .effect-preset:hover {
+        transform: translateY(-1px);
+      }
+
+      .effect-preset.is-active {
+        color: #fff;
+        background: var(--primary);
+        border-color: var(--primary);
+      }
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 16px 0 10px;
+      }
+
+      .section-head h2 {
+        margin: 0;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .count {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .tab-list {
+        display: grid;
+        gap: 10px;
+        max-height: 220px;
+        overflow: auto;
+      }
+
+      .tab-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        padding: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+
+      .tab-open {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      .tab-open:hover {
+        background: color-mix(in srgb, var(--surface) 70%, var(--surface-2));
+      }
+
+      .tab-favicon {
+        flex: 0 0 18px;
+        width: 18px;
+        height: 18px;
+        margin-top: 2px;
+        object-fit: contain;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+      }
+
+      .tab-main {
+        min-width: 0;
+      }
+
+      .tab-title {
+        max-width: 160px;
+        overflow: hidden;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tab-url {
+        max-width: 180px;
+        margin-top: 2px;
+        overflow: hidden;
+        font-size: 12px;
+        color: var(--muted);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tab-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .pill {
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--primary);
+        background: var(--pill);
+        border-radius: 999px;
+      }
+
+      .mini-actions {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+      }
+
+      .mini-btn {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        color: #fff;
+        border-radius: 12px;
+      }
+
+      .mini-primary {
+        background: var(--primary);
+      }
+
+      .mini-danger {
+        background: var(--danger);
+      }
+
+      .empty {
+        padding: 14px;
+        font-size: 13px;
+        color: var(--muted);
+        text-align: center;
+        background: var(--surface-2);
+        border: 1px dashed var(--border);
+        border-radius: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">
+          <h1>BoomPilot</h1>
+          <p>Per-tab audio control with quick actions.</p>
+        </div>
+
+        <div class="topbar-right">
+          <label class="theme-switch" aria-label="Theme switch">
+            <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode">
+            <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path>
+              <path d="M12 20v2"></path>
+              <path d="m4.93 4.93 1.41 1.41"></path>
+              <path d="m17.66 17.66 1.41 1.41"></path>
+              <path d="M2 12h2"></path>
+              <path d="M20 12h2"></path>
+              <path d="m6.34 17.66-1.41 1.41"></path>
+              <path d="m19.07 4.93-1.41 1.41"></path>
             </svg>
-          </button>
-          <button id="mute" class="icon-btn icon-danger" type="button" aria-label="Mute current tab" title="Mute">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <line x1="23" y1="9" x2="17" y2="15"></line>
-              <line x1="17" y1="9" x2="23" y2="15"></line>
+            <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"></path>
             </svg>
-          </button>
+            <span class="theme-thumb" aria-hidden="true"></span>
+          </label>
+
+          <div id="status" class="status">Normal</div>
         </div>
       </div>
+
+      <div class="panel">
+        <div class="row">
+          <div class="label">Current tab</div>
+          <div id="value" class="value">100%</div>
+        </div>
+
+        <input id="volume" type="range" min="0" max="500" step="1" value="100">
+
+        <div class="presets">
+          <button class="preset" data-volume="0">0</button>
+          <button class="preset" data-volume="50">50</button>
+          <button class="preset" data-volume="100">100</button>
+          <button class="preset" data-volume="200">200</button>
+          <button class="preset" data-volume="500">500</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-label">Quick actions</div>
+          <div class="icon-actions">
+            <button id="reset" class="icon-btn icon-primary" type="button" aria-label="Reset volume to 100" title="Reset to 100">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+                <path d="M3 3v6h6"></path>
+              </svg>
+            </button>
+
+            <button id="mute" class="icon-btn icon-danger" type="button" aria-label="Mute current tab" title="Mute">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <line x1="23" y1="9" x2="17" y2="15"></line>
+                <line x1="17" y1="9" x2="23" y2="15"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="effects">
+        <details class="effect-card">
+          <summary class="effect-summary">
+            <div>
+              <div class="effect-name">Voice boost</div>
+              <div class="effect-hint">Adds presence for speech and dialogue.</div>
+            </div>
+            <div class="effect-summary-right">
+              <div id="voiceValue" class="effect-value">Off</div>
+              <span class="effect-chevron" aria-hidden="true">⌄</span>
+            </div>
+          </summary>
+
+          <div class="preset-group" role="group" aria-label="Voice boost presets">
+            <button class="effect-preset" data-effect="voice" data-value="0" type="button">Off</button>
+            <button class="effect-preset" data-effect="voice" data-value="35" type="button">Low</button>
+            <button class="effect-preset" data-effect="voice" data-value="65" type="button">Medium</button>
+            <button class="effect-preset" data-effect="voice" data-value="100" type="button">High</button>
+          </div>
+        </details>
+
+        <details class="effect-card">
+          <summary class="effect-summary">
+            <div>
+              <div class="effect-name">Bass boost</div>
+              <div class="effect-hint">Boosts low frequencies for fuller sound.</div>
+            </div>
+            <div class="effect-summary-right">
+              <div id="bassValue" class="effect-value">Off</div>
+              <span class="effect-chevron" aria-hidden="true">⌄</span>
+            </div>
+          </summary>
+
+          <div class="preset-group" role="group" aria-label="Bass boost presets">
+            <button class="effect-preset" data-effect="bass" data-value="0" type="button">Off</button>
+            <button class="effect-preset" data-effect="bass" data-value="35" type="button">Low</button>
+            <button class="effect-preset" data-effect="bass" data-value="65" type="button">Medium</button>
+            <button class="effect-preset" data-effect="bass" data-value="100" type="button">High</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="section-head">
+        <h2>Changed tabs</h2>
+        <div id="count" class="count">0 tabs</div>
+      </div>
+
+      <div id="changedTabs" class="tab-list"></div>
     </div>
 
-    <div class="section-head">
-      <h2>Changed tabs</h2>
-      <div id="count" class="count">0 tabs</div>
-    </div>
-    <div id="changedTabs" class="tab-list"></div>
-  </div>
-  <script src="popup.js"></script>
-</body>
+    <script src="popup.js"></script>
+  </body>
 </html>

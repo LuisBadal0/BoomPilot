@@ -1,20 +1,23 @@
 {
   "manifest_version": 2,
   "name": "BoomPilot",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "author": "Luis Badalo",
   "description": "Control, mute, and boost audio volume per tab with quick presets, a changed-tabs dashboard, and live badge updates.",
   "permissions": [
     "tabs",
     "activeTab",
-    "<all_urls>"
+    "<all_urls>",
+    "storage"
   ],
   "browser_specific_settings": {
     "gecko": {
       "id": "boompilot@luisbadalo.dev",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["none"],
+        "required": [
+          "none"
+        ],
         "optional": []
       }
     }
@@ -25,12 +28,18 @@
     "default_icon": "icon.svg"
   },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
