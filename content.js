@@ -6,6 +6,7 @@ function clamp(value, min, max) {
 
 function createNodes(media) {
   if (mediaState.has(media)) return mediaState.get(media);
+
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return null;
 
@@ -31,7 +32,18 @@ function createNodes(media) {
   bass.connect(gain);
   gain.connect(context.destination);
 
-  const state = { context, source, voice, bass, gain, media, volume: 100, voiceBoost: 0, bassBoost: 0 };
+  const state = {
+    context,
+    source,
+    voice,
+    bass,
+    gain,
+    media,
+    volume: 100,
+    voiceBoost: 0,
+    bassBoost: 0
+  };
+
   mediaState.set(media, state);
 
   media.addEventListener('play', () => {
@@ -46,7 +58,8 @@ function applyToMedia(media, settings) {
   if (!nodes) return;
 
   nodes.volume = typeof settings.volume === 'number' ? settings.volume : nodes.volume;
-  nodes.voiceBoost = typeof settings.voiceBoost === 'number' ? settings.voiceBoost : nodes.voiceBoost;
+  nodes.voiceBoost =
+    typeof settings.voiceBoost === 'number' ? settings.voiceBoost : nodes.voiceBoost;
   nodes.bassBoost = typeof settings.bassBoost === 'number' ? settings.bassBoost : nodes.bassBoost;
 
   nodes.gain.gain.value = clamp(nodes.volume / 100, 0, 5);
@@ -71,6 +84,12 @@ browser.runtime.onMessage.addListener((message) => {
 });
 
 const observer = new MutationObserver(() => {
-  browser.runtime.sendMessage({ type: 'GET_TAB_AUDIO_STATE', tabId: browser.devtools ? undefined : null }).catch(() => {});
+  browser.runtime
+    .sendMessage({ type: 'GET_TAB_AUDIO_STATE', tabId: browser.devtools ? undefined : null })
+    .catch(() => {});
 });
-observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
+
+observer.observe(document.documentElement || document.body, {
+  childList: true,
+  subtree: true
+});

@@ -3,13 +3,17 @@ const tabState = new Map();
 function getOrCreateState(tabId) {
   const existing = tabState.get(tabId);
   if (existing) return existing;
+
   const created = { volume: 100, voiceBoost: 0, bassBoost: 0 };
   tabState.set(tabId, created);
   return created;
 }
 
 async function updateBadge() {
-  const changedCount = [...tabState.values()].filter((item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0).length;
+  const changedCount = [...tabState.values()].filter(
+    (item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0
+  ).length;
+
   await browser.browserAction.setBadgeBackgroundColor({ color: '#01696f' });
   await browser.browserAction.setBadgeText({ text: changedCount ? String(changedCount) : '' });
 }
@@ -45,7 +49,10 @@ browser.runtime.onMessage.addListener((message) => {
             bassBoost: state.bassBoost
           };
         })
-        .filter((item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0);
+        .filter(
+          (item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0
+        );
+
       return { items };
     });
   }

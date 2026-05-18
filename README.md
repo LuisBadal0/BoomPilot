@@ -4,10 +4,6 @@
 
 **Per-tab volume control for Firefox with live updates, quick presets, and a clean changed-tabs dashboard.**
 
-
-
-
-
 </div>
 
 BoomPilot is a Firefox extension built for people who want tighter control over audio on a tab-by-tab basis. It lets you mute, lower, normalize, or boost a tab instantly, while also keeping track of every tab you changed in one compact control panel.
