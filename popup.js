@@ -8,6 +8,11 @@ function shortUrl(url) {
 function escapeHtml(value) {
   return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+let liveUpdateTimer = null;
+function scheduleLiveUpdate(callback) {
+  clearTimeout(liveUpdateTimer);
+  liveUpdateTimer = setTimeout(callback, 16);
+}
 async function sendVolume(tabId, volume) {
   await browser.tabs.sendMessage(tabId, { type: 'SET_VOLUME', volume });
   await browser.runtime.sendMessage({ type: 'SAVE_TAB_VOLUME', tabId, volume });
@@ -136,6 +141,14 @@ async function refreshChangedTabs(activeTabId) {
     const volume = Number(slider.value);
     value.textContent = `${volume}%`;
     updateStatus(volume);
+    scheduleLiveUpdate(async () => {
+      try {
+        await sendVolume(tab.id, volume);
+        await refreshChangedTabs(tab.id);
+      } catch (error) {
+        value.textContent = 'Reload tab';
+      }
+    });
   });
   slider.addEventListener('change', async () => {
     await setCurrent(Number(slider.value));
