@@ -39,8 +39,19 @@ async function refreshChangedTabs(activeTabId) {
         </div>
       </div>
       <div class="mini-actions">
-        <button class="mini-btn mini-danger" data-mute-tab="${item.tabId}">Mute</button>
-        <button class="mini-btn mini-primary" data-reset-tab="${item.tabId}">Reset</button>
+        <button class="mini-btn mini-danger" type="button" data-mute-tab="${item.tabId}" aria-label="Mute this tab" title="Mute">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+        <button class="mini-btn mini-primary" type="button" data-reset-tab="${item.tabId}" aria-label="Reset this tab to 100%" title="Reset to 100%">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 3-6.7"/>
+            <path d="M3 3v6h6"/>
+          </svg>
+        </button>
       </div>
     </div>
   `).join('');

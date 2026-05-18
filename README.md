@@ -3,12 +3,11 @@
 A Firefox extension to boost, mute, and manage per-tab volume.
 
 ## Features
-- Cleaner popup UI.
+- Cleaner popup UI with icon-based quick actions.
 - Preset buttons for 0, 50, 100, 200, and 500.
-- Dedicated mute and reset buttons.
 - Toolbar badge showing changed volume, hidden at 100%.
-- Improved changed-tabs list with quick mute and reset controls on each row.
-- Click any changed tab row to switch to that tab.
+- Improved changed-tabs list with icon mute and reset controls on each row.
+- Accessible icon buttons with aria-label and title text.
 
 ## Install locally
 1. Open Firefox.

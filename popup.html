@@ -38,15 +38,27 @@
     .value { font-size:24px; font-weight:800; letter-spacing:-.03em; }
     input[type="range"] { width:100%; accent-color:var(--primary); }
     .presets { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:12px; }
-    .preset, .btn, .mini-btn {
-      border:0; border-radius:12px; cursor:pointer; font-weight:700; transition:transform .14s ease, filter .14s ease, background .14s ease;
+    .preset, .icon-btn, .mini-btn {
+      border:0; border-radius:12px; cursor:pointer; font-weight:700; transition:transform .14s ease, filter .14s ease, background .14s ease, border-color .14s ease;
     }
-    .preset { padding:10px 0; background:var(--surface); color:var(--text); border:1px solid var(--border); }
-    .preset:hover, .btn:hover, .mini-btn:hover { filter:brightness(1.03); transform:translateY(-1px); }
-    .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
-    .btn { padding:11px 12px; color:#fff; }
-    .btn-primary { background:linear-gradient(180deg,var(--primary),var(--primary-2)); }
-    .btn-danger { background:linear-gradient(180deg,var(--danger),var(--danger-2)); }
+    .preset {
+      padding:10px 0; background:var(--surface); color:var(--text); border:1px solid var(--border);
+    }
+    .preset:hover, .icon-btn:hover, .mini-btn:hover { filter:brightness(1.03); transform:translateY(-1px); }
+    .toolbar {
+      display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px;
+    }
+    .toolbar-label {
+      color:var(--muted); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+    }
+    .icon-actions { display:flex; gap:10px; }
+    .icon-btn {
+      width:44px; height:44px; display:grid; place-items:center; color:#fff;
+      box-shadow:0 6px 16px rgba(0,0,0,.12);
+    }
+    .icon-btn svg, .mini-btn svg { width:18px; height:18px; display:block; }
+    .icon-primary { background:linear-gradient(180deg,var(--primary),var(--primary-2)); }
+    .icon-danger { background:linear-gradient(180deg,var(--danger),var(--danger-2)); }
     .section-head { display:flex; align-items:center; justify-content:space-between; margin:16px 0 10px; }
     .section-head h2 { margin:0; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
     .count { font-size:12px; color:var(--muted); }
@@ -61,7 +73,9 @@
     .tab-meta { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
     .pill { font-size:11px; font-weight:800; color:var(--primary); background:var(--pill); border-radius:999px; padding:4px 8px; }
     .mini-actions { display:grid; gap:8px; align-content:start; }
-    .mini-btn { min-width:58px; padding:8px 10px; color:#fff; font-size:12px; }
+    .mini-btn {
+      width:38px; height:38px; display:grid; place-items:center; color:#fff; border-radius:12px;
+    }
     .mini-primary { background:var(--primary); }
     .mini-danger { background:var(--danger); }
     .empty { color:var(--muted); font-size:13px; padding:14px; text-align:center; background:var(--surface-2); border:1px dashed var(--border); border-radius:14px; }
@@ -90,9 +104,23 @@
         <button class="preset" data-volume="200">200</button>
         <button class="preset" data-volume="500">500</button>
       </div>
-      <div class="actions">
-        <button id="reset" class="btn btn-primary">Reset</button>
-        <button id="mute" class="btn btn-danger">Mute</button>
+      <div class="toolbar">
+        <div class="toolbar-label">Quick actions</div>
+        <div class="icon-actions">
+          <button id="reset" class="icon-btn icon-primary" type="button" aria-label="Reset volume to 100%" title="Reset to 100%">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 3-6.7"/>
+              <path d="M3 3v6h6"/>
+            </svg>
+          </button>
+          <button id="mute" class="icon-btn icon-danger" type="button" aria-label="Mute current tab" title="Mute">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <line x1="23" y1="9" x2="17" y2="15"></line>
+              <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
