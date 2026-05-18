@@ -19,9 +19,9 @@ function scheduleLiveUpdate(callback) {
   liveUpdateTimer = setTimeout(callback, 16);
 }
 
-async function sendVolume(tabId, volume) {
-  await browser.tabs.sendMessage(tabId, { type: 'SET_VOLUME', volume });
-  await browser.runtime.sendMessage({ type: 'SAVE_TAB_VOLUME', tabId, volume });
+async function sendAudioState(tabId, state) {
+  await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...state });
+  await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...state });
 }
 
 function updateStatus(volume) {
@@ -102,11 +102,35 @@ async function initTheme() {
   let theme = getCurrentTheme();
   try {
     const stored = await browser.storage.local.get('theme');
-    if (stored.theme === 'dark' || stored.theme === 'light') {
-      theme = stored.theme;
-    }
+    if (stored.theme === 'dark' || stored.theme === 'light') theme = stored.theme;
   } catch (error) {}
   await applyTheme(theme);
+}
+
+function effectLabel(value) {
+  if (value >= 100) return 'High';
+  if (value >= 65) return 'Medium';
+  if (value >= 35) return 'Low';
+  return 'Off';
+}
+
+function updateEffectButtons(state) {
+  for (const button of document.querySelectorAll('.effect-preset')) {
+    const effect = button.dataset.effect;
+    const value = Number(button.dataset.value);
+    const current = effect === 'voice' ? state.voiceBoost : state.bassBoost;
+    button.classList.toggle('is-active', value === current);
+    button.setAttribute('aria-pressed', String(value === current));
+  }
+}
+
+function updateEffectsView(state) {
+  document.getElementById('value').textContent = `${state.volume}%`;
+  document.getElementById('volume').value = String(state.volume);
+  document.getElementById('voiceValue').textContent = effectLabel(state.voiceBoost);
+  document.getElementById('bassValue').textContent = effectLabel(state.bassBoost);
+  updateEffectButtons(state);
+  updateStatus(state.volume);
 }
 
 async function refreshChangedTabs(activeTabId) {
@@ -151,16 +175,17 @@ async function refreshChangedTabs(activeTabId) {
     const meta = document.createElement('div');
     meta.className = 'tab-meta';
 
-    const volumePill = document.createElement('span');
-    volumePill.className = 'pill';
-    volumePill.textContent = `${item.volume}%`;
-    meta.appendChild(volumePill);
-
-    if (item.audible) {
-      const playingPill = document.createElement('span');
-      playingPill.className = 'pill';
-      playingPill.textContent = 'Playing';
-      meta.appendChild(playingPill);
+    for (const token of [
+      `${item.volume}%`,
+      item.voiceBoost ? `Voice ${item.voiceBoost}%` : null,
+      item.bassBoost ? `Bass ${item.bassBoost}%` : null,
+      item.audible ? 'Playing' : null
+    ]) {
+      if (!token) continue;
+      const pill = document.createElement('span');
+      pill.className = 'pill';
+      pill.textContent = token;
+      meta.appendChild(pill);
     }
 
     main.appendChild(title);
@@ -184,8 +209,8 @@ async function refreshChangedTabs(activeTabId) {
     resetButton.className = 'mini-btn mini-primary';
     resetButton.type = 'button';
     resetButton.dataset.resetTab = String(item.tabId);
-    resetButton.setAttribute('aria-label', 'Reset this tab to 100%');
-    resetButton.title = 'Reset to 100%';
+    resetButton.setAttribute('aria-label', 'Reset this tab audio');
+    resetButton.title = 'Reset';
     resetButton.appendChild(createResetIcon());
 
     actions.appendChild(muteButton);
@@ -206,13 +231,11 @@ async function refreshChangedTabs(activeTabId) {
     node.addEventListener('click', async (event) => {
       event.stopPropagation();
       const tabId = Number(node.dataset.muteTab);
-      await sendVolume(tabId, 0);
+      const next = { volume: 0 };
+      await sendAudioState(tabId, next);
       if (tabId === currentActiveTabId) {
-        const slider = document.getElementById('volume');
-        const value = document.getElementById('value');
-        slider.value = '0';
-        value.textContent = '0%';
-        updateStatus(0);
+        const state = await browser.runtime.sendMessage({ type: 'GET_TAB_AUDIO_STATE', tabId });
+        updateEffectsView(state);
       }
       await refreshChangedTabs(activeTabId);
     });
@@ -222,14 +245,9 @@ async function refreshChangedTabs(activeTabId) {
     node.addEventListener('click', async (event) => {
       event.stopPropagation();
       const tabId = Number(node.dataset.resetTab);
-      await sendVolume(tabId, 100);
-      if (tabId === currentActiveTabId) {
-        const slider = document.getElementById('volume');
-        const value = document.getElementById('value');
-        slider.value = '100';
-        value.textContent = '100%';
-        updateStatus(100);
-      }
+      const next = { volume: 100, voiceBoost: 0, bassBoost: 0 };
+      await sendAudioState(tabId, next);
+      if (tabId === currentActiveTabId) updateEffectsView(next);
       await refreshChangedTabs(activeTabId);
     });
   }
@@ -240,7 +258,7 @@ async function refreshChangedTabs(activeTabId) {
   enableThemeAnimation();
 
   const slider = document.getElementById('volume');
-  const value = document.getElementById('value');
+  const effectButtons = [...document.querySelectorAll('.effect-preset')];
   const reset = document.getElementById('reset');
   const mute = document.getElementById('mute');
   const presets = [...document.querySelectorAll('.preset')];
@@ -250,70 +268,58 @@ async function refreshChangedTabs(activeTabId) {
     themeToggle.addEventListener('change', async () => {
       const nextTheme = themeToggle.checked ? 'dark' : 'light';
       await applyTheme(nextTheme);
-      try {
-        await browser.storage.local.set({ theme: nextTheme });
-      } catch (error) {}
+      try { await browser.storage.local.set({ theme: nextTheme }); } catch (error) {}
     });
   }
 
   const tab = await getActiveTab();
-  if (!tab || !tab.id) {
-    value.textContent = 'N/A';
-    slider.disabled = true;
-    reset.disabled = true;
-    mute.disabled = true;
-    return;
-  }
-
+  if (!tab || !tab.id) return;
   currentActiveTabId = tab.id;
-  const state = await browser.runtime.sendMessage({ type: 'GET_TAB_VOLUME', tabId: tab.id });
-  const current = state && typeof state.volume === 'number' ? state.volume : 100;
-  slider.value = String(current);
-  value.textContent = `${current}%`;
-  updateStatus(current);
+
+  let currentState = await browser.runtime.sendMessage({ type: 'GET_TAB_AUDIO_STATE', tabId: tab.id });
+  updateEffectsView(currentState);
   await refreshChangedTabs(tab.id);
 
-  async function setCurrent(volume) {
-    slider.value = String(volume);
-    value.textContent = `${volume}%`;
-    updateStatus(volume);
+  async function updateState(patch) {
+    const next = {
+      volume: Number(slider.value),
+      voiceBoost: currentState.voiceBoost,
+      bassBoost: currentState.bassBoost,
+      ...patch
+    };
+    currentState = next;
+    updateEffectsView(next);
     try {
-      await sendVolume(tab.id, volume);
+      await sendAudioState(tab.id, next);
       await refreshChangedTabs(tab.id);
     } catch (error) {
-      value.textContent = 'Reload tab';
+      document.getElementById('value').textContent = 'Reload tab';
     }
   }
 
   slider.addEventListener('input', () => {
     const volume = Number(slider.value);
-    value.textContent = `${volume}%`;
+    document.getElementById('value').textContent = `${volume}%`;
     updateStatus(volume);
-    scheduleLiveUpdate(async () => {
-      try {
-        await sendVolume(tab.id, volume);
-        await refreshChangedTabs(tab.id);
-      } catch (error) {
-        value.textContent = 'Reload tab';
+    scheduleLiveUpdate(() => updateState({ volume }));
+  });
+  slider.addEventListener('change', () => updateState({ volume: Number(slider.value) }));
+
+  for (const button of effectButtons) {
+    button.addEventListener('click', () => {
+      const value = Number(button.dataset.value);
+      if (button.dataset.effect === 'voice') {
+        updateState({ voiceBoost: value });
+      } else {
+        updateState({ bassBoost: value });
       }
     });
-  });
+  }
 
-  slider.addEventListener('change', async () => {
-    await setCurrent(Number(slider.value));
-  });
-
-  reset.addEventListener('click', async () => {
-    await setCurrent(100);
-  });
-
-  mute.addEventListener('click', async () => {
-    await setCurrent(0);
-  });
+  reset.addEventListener('click', () => updateState({ volume: 100, voiceBoost: 0, bassBoost: 0 }));
+  mute.addEventListener('click', () => updateState({ volume: 0 }));
 
   for (const button of presets) {
-    button.addEventListener('click', async () => {
-      await setCurrent(Number(button.dataset.volume));
-    });
+    button.addEventListener('click', () => updateState({ volume: Number(button.dataset.volume) }));
   }
 })();
