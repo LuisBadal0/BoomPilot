@@ -2,21 +2,28 @@ async function getActiveTab() {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   return tabs[0];
 }
+
 function shortUrl(url) {
-  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url || ''; }
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url || '';
+  }
 }
-function escapeHtml(value) {
-  return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+
 let liveUpdateTimer = null;
+let currentActiveTabId = null;
+
 function scheduleLiveUpdate(callback) {
   clearTimeout(liveUpdateTimer);
   liveUpdateTimer = setTimeout(callback, 16);
 }
+
 async function sendVolume(tabId, volume) {
   await browser.tabs.sendMessage(tabId, { type: 'SET_VOLUME', volume });
   await browser.runtime.sendMessage({ type: 'SAVE_TAB_VOLUME', tabId, volume });
 }
+
 function updateStatus(volume) {
   const status = document.getElementById('status');
   if (volume === 0) status.textContent = 'Muted';
@@ -24,7 +31,83 @@ function updateStatus(volume) {
   else if (volume === 100) status.textContent = 'Normal';
   else status.textContent = 'Boosted';
 }
-let currentActiveTabId = null;
+
+function createIconBase() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  return svg;
+}
+
+function createResetIcon() {
+  const svg = createIconBase();
+  const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path1.setAttribute('d', 'M3 12a9 9 0 1 0 3-6.7');
+  const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path2.setAttribute('d', 'M3 3v6h6');
+  svg.appendChild(path1);
+  svg.appendChild(path2);
+  return svg;
+}
+
+function createMuteIcon() {
+  const svg = createIconBase();
+  const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  polygon.setAttribute('points', '11 5 6 9 2 9 2 15 6 15 11 19 11 5');
+  const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line1.setAttribute('x1', '23');
+  line1.setAttribute('y1', '9');
+  line1.setAttribute('x2', '17');
+  line1.setAttribute('y2', '15');
+  const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line2.setAttribute('x1', '17');
+  line2.setAttribute('y1', '9');
+  line2.setAttribute('x2', '23');
+  line2.setAttribute('y2', '15');
+  svg.appendChild(polygon);
+  svg.appendChild(line1);
+  svg.appendChild(line2);
+  return svg;
+}
+
+function getCurrentTheme() {
+  const explicit = document.documentElement.getAttribute('data-theme');
+  if (explicit === 'dark' || explicit === 'light') return explicit;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+async function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    toggle.checked = theme === 'dark';
+    toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+}
+
+function enableThemeAnimation() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.documentElement.classList.add('theme-animate');
+    });
+  });
+}
+
+async function initTheme() {
+  let theme = getCurrentTheme();
+  try {
+    const stored = await browser.storage.local.get('theme');
+    if (stored.theme === 'dark' || stored.theme === 'light') {
+      theme = stored.theme;
+    }
+  } catch (error) {}
+  await applyTheme(theme);
+}
 
 async function refreshChangedTabs(activeTabId) {
   const list = document.getElementById('changedTabs');
@@ -32,6 +115,7 @@ async function refreshChangedTabs(activeTabId) {
   const { items = [] } = await browser.runtime.sendMessage({ type: 'LIST_CHANGED_TABS' });
   count.textContent = `${items.length} tab${items.length === 1 ? '' : 's'}`;
   list.replaceChildren();
+
   if (!items.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
@@ -82,7 +166,6 @@ async function refreshChangedTabs(activeTabId) {
     main.appendChild(title);
     main.appendChild(url);
     main.appendChild(meta);
-
     open.appendChild(favicon);
     open.appendChild(main);
 
@@ -107,7 +190,6 @@ async function refreshChangedTabs(activeTabId) {
 
     actions.appendChild(muteButton);
     actions.appendChild(resetButton);
-
     row.appendChild(open);
     row.appendChild(actions);
     list.appendChild(row);
@@ -119,6 +201,7 @@ async function refreshChangedTabs(activeTabId) {
       window.close();
     });
   }
+
   for (const node of list.querySelectorAll('[data-mute-tab]')) {
     node.addEventListener('click', async (event) => {
       event.stopPropagation();
@@ -134,6 +217,7 @@ async function refreshChangedTabs(activeTabId) {
       await refreshChangedTabs(activeTabId);
     });
   }
+
   for (const node of list.querySelectorAll('[data-reset-tab]')) {
     node.addEventListener('click', async (event) => {
       event.stopPropagation();
@@ -151,55 +235,27 @@ async function refreshChangedTabs(activeTabId) {
   }
 }
 
-function createIconBase() {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '2');
-  svg.setAttribute('stroke-linecap', 'round');
-  svg.setAttribute('stroke-linejoin', 'round');
-  svg.setAttribute('aria-hidden', 'true');
-  return svg;
-}
-
-function createResetIcon() {
-  const svg = createIconBase();
-  const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path1.setAttribute('d', 'M3 12a9 9 0 1 0 3-6.7');
-  const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path2.setAttribute('d', 'M3 3v6h6');
-  svg.appendChild(path1);
-  svg.appendChild(path2);
-  return svg;
-}
-
-function createMuteIcon() {
-  const svg = createIconBase();
-  const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  polygon.setAttribute('points', '11 5 6 9 2 9 2 15 6 15 11 19 11 5');
-  const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line1.setAttribute('x1', '23');
-  line1.setAttribute('y1', '9');
-  line1.setAttribute('x2', '17');
-  line1.setAttribute('y2', '15');
-  const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line2.setAttribute('x1', '17');
-  line2.setAttribute('y1', '9');
-  line2.setAttribute('x2', '23');
-  line2.setAttribute('y2', '15');
-  svg.appendChild(polygon);
-  svg.appendChild(line1);
-  svg.appendChild(line2);
-  return svg;
-}
-
 (async function init() {
+  await initTheme();
+  enableThemeAnimation();
+
   const slider = document.getElementById('volume');
   const value = document.getElementById('value');
   const reset = document.getElementById('reset');
   const mute = document.getElementById('mute');
   const presets = [...document.querySelectorAll('.preset')];
+  const themeToggle = document.getElementById('themeToggle');
+
+  if (themeToggle) {
+    themeToggle.addEventListener('change', async () => {
+      const nextTheme = themeToggle.checked ? 'dark' : 'light';
+      await applyTheme(nextTheme);
+      try {
+        await browser.storage.local.set({ theme: nextTheme });
+      } catch (error) {}
+    });
+  }
+
   const tab = await getActiveTab();
   if (!tab || !tab.id) {
     value.textContent = 'N/A';
@@ -208,6 +264,7 @@ function createMuteIcon() {
     mute.disabled = true;
     return;
   }
+
   currentActiveTabId = tab.id;
   const state = await browser.runtime.sendMessage({ type: 'GET_TAB_VOLUME', tabId: tab.id });
   const current = state && typeof state.volume === 'number' ? state.volume : 100;
@@ -241,12 +298,22 @@ function createMuteIcon() {
       }
     });
   });
+
   slider.addEventListener('change', async () => {
     await setCurrent(Number(slider.value));
   });
-  reset.addEventListener('click', async () => { await setCurrent(100); });
-  mute.addEventListener('click', async () => { await setCurrent(0); });
+
+  reset.addEventListener('click', async () => {
+    await setCurrent(100);
+  });
+
+  mute.addEventListener('click', async () => {
+    await setCurrent(0);
+  });
+
   for (const button of presets) {
-    button.addEventListener('click', async () => { await setCurrent(Number(button.dataset.volume)); });
+    button.addEventListener('click', async () => {
+      await setCurrent(Number(button.dataset.volume));
+    });
   }
 })();
