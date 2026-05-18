@@ -3,11 +3,11 @@
 A Firefox extension to boost, mute, and manage per-tab volume.
 
 ## Features
-- Catchy renamed extension: BoomPilot.
-- Popup slider from 0% to 500%.
-- Dedicated mute and reset buttons.
+- Cleaner popup UI with icon-based quick actions.
+- Preset buttons for 0, 50, 100, 200, and 500.
 - Toolbar badge showing changed volume, hidden at 100%.
-- A popup list of tabs in the current window whose volume was changed by the extension.
+- Improved changed-tabs list with icon mute and reset controls on each row.
+- Accessible icon buttons with aria-label and title text.
 
 ## Install locally
 1. Open Firefox.

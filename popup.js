@@ -2,86 +2,251 @@ async function getActiveTab() {
   const tabs = await browser.tabs.query({ active: true, currentWindow: true });
   return tabs[0];
 }
+function shortUrl(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url || ''; }
+}
+function escapeHtml(value) {
+  return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+let liveUpdateTimer = null;
+function scheduleLiveUpdate(callback) {
+  clearTimeout(liveUpdateTimer);
+  liveUpdateTimer = setTimeout(callback, 16);
+}
 async function sendVolume(tabId, volume) {
   await browser.tabs.sendMessage(tabId, { type: 'SET_VOLUME', volume });
   await browser.runtime.sendMessage({ type: 'SAVE_TAB_VOLUME', tabId, volume });
 }
-function shortUrl(url) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return url || '';
-  }
+function updateStatus(volume) {
+  const status = document.getElementById('status');
+  if (volume === 0) status.textContent = 'Muted';
+  else if (volume < 100) status.textContent = 'Lowered';
+  else if (volume === 100) status.textContent = 'Normal';
+  else status.textContent = 'Boosted';
 }
-function renderChangedTabs(items, activeTabId) {
+let currentActiveTabId = null;
+
+async function refreshChangedTabs(activeTabId) {
   const list = document.getElementById('changedTabs');
+  const count = document.getElementById('count');
+  const { items = [] } = await browser.runtime.sendMessage({ type: 'LIST_CHANGED_TABS' });
+  count.textContent = `${items.length} tab${items.length === 1 ? '' : 's'}`;
+  list.replaceChildren();
   if (!items.length) {
-    list.innerHTML = '<div class="empty">No tabs changed yet.</div>';
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No tabs changed yet.';
+    list.appendChild(empty);
     return;
   }
-  list.innerHTML = items.map(item => `
-    <div class="tab-item" data-tab-id="${item.tabId}">
-      <div class="tab-main">
-        <div class="tab-title">${(item.title || 'Untitled tab').replace(/[<>&"]/g, '')}${item.tabId === activeTabId ? ' • current' : ''}</div>
-        <div class="tab-url">${shortUrl(item.url).replace(/[<>&"]/g, '')}</div>
-      </div>
-      <div class="pill">${item.volume}%</div>
-    </div>
-  `).join('');
-  for (const node of list.querySelectorAll('.tab-item')) {
+
+  for (const item of items) {
+    const row = document.createElement('div');
+    row.className = 'tab-item';
+
+    const open = document.createElement('div');
+    open.className = 'tab-open';
+    open.dataset.openTab = String(item.tabId);
+
+    const favicon = document.createElement('img');
+    favicon.className = 'tab-favicon';
+    favicon.alt = '';
+    favicon.src = item.favIconUrl || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 18 18%22%3E%3Crect width=%2218%22 height=%2218%22 rx=%224%22 fill=%22%23d9d5ce%22/%3E%3Cpath d=%22M5 9h8M9 5v8%22 stroke=%22%23706c63%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/%3E%3C/svg%3E';
+
+    const main = document.createElement('div');
+    main.className = 'tab-main';
+
+    const title = document.createElement('div');
+    title.className = 'tab-title';
+    title.textContent = `${item.title || 'Untitled tab'}${item.tabId === activeTabId ? ' • current' : ''}`;
+
+    const url = document.createElement('div');
+    url.className = 'tab-url';
+    url.textContent = shortUrl(item.url);
+
+    const meta = document.createElement('div');
+    meta.className = 'tab-meta';
+
+    const volumePill = document.createElement('span');
+    volumePill.className = 'pill';
+    volumePill.textContent = `${item.volume}%`;
+    meta.appendChild(volumePill);
+
+    if (item.audible) {
+      const playingPill = document.createElement('span');
+      playingPill.className = 'pill';
+      playingPill.textContent = 'Playing';
+      meta.appendChild(playingPill);
+    }
+
+    main.appendChild(title);
+    main.appendChild(url);
+    main.appendChild(meta);
+
+    open.appendChild(favicon);
+    open.appendChild(main);
+
+    const actions = document.createElement('div');
+    actions.className = 'mini-actions';
+
+    const muteButton = document.createElement('button');
+    muteButton.className = 'mini-btn mini-danger';
+    muteButton.type = 'button';
+    muteButton.dataset.muteTab = String(item.tabId);
+    muteButton.setAttribute('aria-label', 'Mute this tab');
+    muteButton.title = 'Mute';
+    muteButton.appendChild(createMuteIcon());
+
+    const resetButton = document.createElement('button');
+    resetButton.className = 'mini-btn mini-primary';
+    resetButton.type = 'button';
+    resetButton.dataset.resetTab = String(item.tabId);
+    resetButton.setAttribute('aria-label', 'Reset this tab to 100%');
+    resetButton.title = 'Reset to 100%';
+    resetButton.appendChild(createResetIcon());
+
+    actions.appendChild(muteButton);
+    actions.appendChild(resetButton);
+
+    row.appendChild(open);
+    row.appendChild(actions);
+    list.appendChild(row);
+  }
+
+  for (const node of list.querySelectorAll('[data-open-tab]')) {
     node.addEventListener('click', async () => {
-      const tabId = Number(node.dataset.tabId);
-      await browser.tabs.update(tabId, { active: true });
+      await browser.tabs.update(Number(node.dataset.openTab), { active: true });
       window.close();
     });
   }
+  for (const node of list.querySelectorAll('[data-mute-tab]')) {
+    node.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const tabId = Number(node.dataset.muteTab);
+      await sendVolume(tabId, 0);
+      if (tabId === currentActiveTabId) {
+        const slider = document.getElementById('volume');
+        const value = document.getElementById('value');
+        slider.value = '0';
+        value.textContent = '0%';
+        updateStatus(0);
+      }
+      await refreshChangedTabs(activeTabId);
+    });
+  }
+  for (const node of list.querySelectorAll('[data-reset-tab]')) {
+    node.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const tabId = Number(node.dataset.resetTab);
+      await sendVolume(tabId, 100);
+      if (tabId === currentActiveTabId) {
+        const slider = document.getElementById('volume');
+        const value = document.getElementById('value');
+        slider.value = '100';
+        value.textContent = '100%';
+        updateStatus(100);
+      }
+      await refreshChangedTabs(activeTabId);
+    });
+  }
 }
+
+function createIconBase() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  return svg;
+}
+
+function createResetIcon() {
+  const svg = createIconBase();
+  const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path1.setAttribute('d', 'M3 12a9 9 0 1 0 3-6.7');
+  const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path2.setAttribute('d', 'M3 3v6h6');
+  svg.appendChild(path1);
+  svg.appendChild(path2);
+  return svg;
+}
+
+function createMuteIcon() {
+  const svg = createIconBase();
+  const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  polygon.setAttribute('points', '11 5 6 9 2 9 2 15 6 15 11 19 11 5');
+  const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line1.setAttribute('x1', '23');
+  line1.setAttribute('y1', '9');
+  line1.setAttribute('x2', '17');
+  line1.setAttribute('y2', '15');
+  const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line2.setAttribute('x1', '17');
+  line2.setAttribute('y1', '9');
+  line2.setAttribute('x2', '23');
+  line2.setAttribute('y2', '15');
+  svg.appendChild(polygon);
+  svg.appendChild(line1);
+  svg.appendChild(line2);
+  return svg;
+}
+
 (async function init() {
   const slider = document.getElementById('volume');
   const value = document.getElementById('value');
   const reset = document.getElementById('reset');
   const mute = document.getElementById('mute');
+  const presets = [...document.querySelectorAll('.preset')];
   const tab = await getActiveTab();
-  if (!tab || !tab.id) { value.textContent = 'N/A'; slider.disabled = true; reset.disabled = true; mute.disabled = true; return; }
-  const [state, changedTabsResponse] = await Promise.all([
-    browser.runtime.sendMessage({ type: 'GET_TAB_VOLUME', tabId: tab.id }),
-    browser.runtime.sendMessage({ type: 'LIST_CHANGED_TABS' })
-  ]);
+  if (!tab || !tab.id) {
+    value.textContent = 'N/A';
+    slider.disabled = true;
+    reset.disabled = true;
+    mute.disabled = true;
+    return;
+  }
+  currentActiveTabId = tab.id;
+  const state = await browser.runtime.sendMessage({ type: 'GET_TAB_VOLUME', tabId: tab.id });
   const current = state && typeof state.volume === 'number' ? state.volume : 100;
   slider.value = String(current);
   value.textContent = `${current}%`;
-  renderChangedTabs(changedTabsResponse.items || [], tab.id);
-  slider.addEventListener('input', async () => {
-    const volume = Number(slider.value);
+  updateStatus(current);
+  await refreshChangedTabs(tab.id);
+
+  async function setCurrent(volume) {
+    slider.value = String(volume);
     value.textContent = `${volume}%`;
+    updateStatus(volume);
     try {
       await sendVolume(tab.id, volume);
-      const changed = await browser.runtime.sendMessage({ type: 'LIST_CHANGED_TABS' });
-      renderChangedTabs(changed.items || [], tab.id);
+      await refreshChangedTabs(tab.id);
     } catch (error) {
       value.textContent = 'Reload tab';
     }
+  }
+
+  slider.addEventListener('input', () => {
+    const volume = Number(slider.value);
+    value.textContent = `${volume}%`;
+    updateStatus(volume);
+    scheduleLiveUpdate(async () => {
+      try {
+        await sendVolume(tab.id, volume);
+        await refreshChangedTabs(tab.id);
+      } catch (error) {
+        value.textContent = 'Reload tab';
+      }
+    });
   });
-  reset.addEventListener('click', async () => {
-    slider.value = '100';
-    value.textContent = '100%';
-    try {
-      await sendVolume(tab.id, 100);
-      const changed = await browser.runtime.sendMessage({ type: 'LIST_CHANGED_TABS' });
-      renderChangedTabs(changed.items || [], tab.id);
-    } catch (error) {
-      value.textContent = 'Reload tab';
-    }
+  slider.addEventListener('change', async () => {
+    await setCurrent(Number(slider.value));
   });
-  mute.addEventListener('click', async () => {
-    slider.value = '0';
-    value.textContent = '0%';
-    try {
-      await sendVolume(tab.id, 0);
-      const changed = await browser.runtime.sendMessage({ type: 'LIST_CHANGED_TABS' });
-      renderChangedTabs(changed.items || [], tab.id);
-    } catch (error) {
-      value.textContent = 'Reload tab';
-    }
-  });
+  reset.addEventListener('click', async () => { await setCurrent(100); });
+  mute.addEventListener('click', async () => { await setCurrent(0); });
+  for (const button of presets) {
+    button.addEventListener('click', async () => { await setCurrent(Number(button.dataset.volume)); });
+  }
 })();
