@@ -1,9 +1,8 @@
 {
   "manifest_version": 2,
   "name": "BoomPilot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Luis Badalo",
-  "homepage_url": "https://addons.mozilla.org/firefox/",
   "description": "Control, mute, and boost audio volume per tab with quick presets, a changed-tabs dashboard, and live badge updates.",
   "permissions": [
     "tabs",
@@ -13,9 +12,9 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "boompilot@luisbadalo.dev",
-      "strict_min_version": "109.0",
+      "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": [],
+        "required": ["none"],
         "optional": []
       }
     }

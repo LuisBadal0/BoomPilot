@@ -31,40 +31,87 @@ async function refreshChangedTabs(activeTabId) {
   const count = document.getElementById('count');
   const { items = [] } = await browser.runtime.sendMessage({ type: 'LIST_CHANGED_TABS' });
   count.textContent = `${items.length} tab${items.length === 1 ? '' : 's'}`;
+  list.replaceChildren();
   if (!items.length) {
-    list.innerHTML = '<div class="empty">No tabs changed yet.</div>';
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No tabs changed yet.';
+    list.appendChild(empty);
     return;
   }
-  list.innerHTML = items.map(item => `
-    <div class="tab-item">
-      <div class="tab-open" data-open-tab="${item.tabId}">
-        <img class="tab-favicon" src="${escapeHtml(item.favIconUrl || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 18 18%22%3E%3Crect width=%2218%22 height=%2218%22 rx=%224%22 fill=%22%23d9d5ce%22/%3E%3Cpath d=%22M5 9h8M9 5v8%22 stroke=%22%23706c63%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/%3E%3C/svg%3E')}" alt="" />
-        <div class="tab-main">
-          <div class="tab-title">${escapeHtml(item.title || 'Untitled tab')}${item.tabId === activeTabId ? ' • current' : ''}</div>
-          <div class="tab-url">${escapeHtml(shortUrl(item.url))}</div>
-          <div class="tab-meta">
-            <span class="pill">${item.volume}%</span>
-            ${item.audible ? '<span class="pill">Playing</span>' : ''}
-          </div>
-        </div>
-      </div>
-      <div class="mini-actions">
-        <button class="mini-btn mini-danger" type="button" data-mute-tab="${item.tabId}" aria-label="Mute this tab" title="Mute">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <line x1="23" y1="9" x2="17" y2="15"></line>
-            <line x1="17" y1="9" x2="23" y2="15"></line>
-          </svg>
-        </button>
-        <button class="mini-btn mini-primary" type="button" data-reset-tab="${item.tabId}" aria-label="Reset this tab to 100%" title="Reset to 100%">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 12a9 9 0 1 0 3-6.7"/>
-            <path d="M3 3v6h6"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  `).join('');
+
+  for (const item of items) {
+    const row = document.createElement('div');
+    row.className = 'tab-item';
+
+    const open = document.createElement('div');
+    open.className = 'tab-open';
+    open.dataset.openTab = String(item.tabId);
+
+    const favicon = document.createElement('img');
+    favicon.className = 'tab-favicon';
+    favicon.alt = '';
+    favicon.src = item.favIconUrl || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 18 18%22%3E%3Crect width=%2218%22 height=%2218%22 rx=%224%22 fill=%22%23d9d5ce%22/%3E%3Cpath d=%22M5 9h8M9 5v8%22 stroke=%22%23706c63%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/%3E%3C/svg%3E';
+
+    const main = document.createElement('div');
+    main.className = 'tab-main';
+
+    const title = document.createElement('div');
+    title.className = 'tab-title';
+    title.textContent = `${item.title || 'Untitled tab'}${item.tabId === activeTabId ? ' • current' : ''}`;
+
+    const url = document.createElement('div');
+    url.className = 'tab-url';
+    url.textContent = shortUrl(item.url);
+
+    const meta = document.createElement('div');
+    meta.className = 'tab-meta';
+
+    const volumePill = document.createElement('span');
+    volumePill.className = 'pill';
+    volumePill.textContent = `${item.volume}%`;
+    meta.appendChild(volumePill);
+
+    if (item.audible) {
+      const playingPill = document.createElement('span');
+      playingPill.className = 'pill';
+      playingPill.textContent = 'Playing';
+      meta.appendChild(playingPill);
+    }
+
+    main.appendChild(title);
+    main.appendChild(url);
+    main.appendChild(meta);
+
+    open.appendChild(favicon);
+    open.appendChild(main);
+
+    const actions = document.createElement('div');
+    actions.className = 'mini-actions';
+
+    const muteButton = document.createElement('button');
+    muteButton.className = 'mini-btn mini-danger';
+    muteButton.type = 'button';
+    muteButton.dataset.muteTab = String(item.tabId);
+    muteButton.setAttribute('aria-label', 'Mute this tab');
+    muteButton.title = 'Mute';
+    muteButton.appendChild(createMuteIcon());
+
+    const resetButton = document.createElement('button');
+    resetButton.className = 'mini-btn mini-primary';
+    resetButton.type = 'button';
+    resetButton.dataset.resetTab = String(item.tabId);
+    resetButton.setAttribute('aria-label', 'Reset this tab to 100%');
+    resetButton.title = 'Reset to 100%';
+    resetButton.appendChild(createResetIcon());
+
+    actions.appendChild(muteButton);
+    actions.appendChild(resetButton);
+
+    row.appendChild(open);
+    row.appendChild(actions);
+    list.appendChild(row);
+  }
 
   for (const node of list.querySelectorAll('[data-open-tab]')) {
     node.addEventListener('click', async () => {
@@ -103,6 +150,50 @@ async function refreshChangedTabs(activeTabId) {
     });
   }
 }
+
+function createIconBase() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  return svg;
+}
+
+function createResetIcon() {
+  const svg = createIconBase();
+  const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path1.setAttribute('d', 'M3 12a9 9 0 1 0 3-6.7');
+  const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path2.setAttribute('d', 'M3 3v6h6');
+  svg.appendChild(path1);
+  svg.appendChild(path2);
+  return svg;
+}
+
+function createMuteIcon() {
+  const svg = createIconBase();
+  const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  polygon.setAttribute('points', '11 5 6 9 2 9 2 15 6 15 11 19 11 5');
+  const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line1.setAttribute('x1', '23');
+  line1.setAttribute('y1', '9');
+  line1.setAttribute('x2', '17');
+  line1.setAttribute('y2', '15');
+  const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line2.setAttribute('x1', '17');
+  line2.setAttribute('y1', '9');
+  line2.setAttribute('x2', '23');
+  line2.setAttribute('y2', '15');
+  svg.appendChild(polygon);
+  svg.appendChild(line1);
+  svg.appendChild(line2);
+  return svg;
+}
+
 (async function init() {
   const slider = document.getElementById('volume');
   const value = document.getElementById('value');
