@@ -5,41 +5,101 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BoomPilot</title>
   <style>
-    :root { color-scheme: light dark; --bg:#f7f6f2; --surface:#fff; --text:#28251d; --muted:#6b6a66; --primary:#01696f; --border:#d8d5cf; --danger:#7a1f1f; }
-    @media (prefers-color-scheme: dark) { :root { --bg:#171614; --surface:#1c1b19; --text:#ece9e2; --muted:#aaa59a; --primary:#4f98a3; --border:#3a3834; --danger:#b65353; } }
-    * { box-sizing: border-box; }
-    body { margin:0; width:320px; font:14px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--text); padding:16px; }
-    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; }
-    h1 { font-size:18px; margin:0 0 6px; }
-    h2 { font-size:13px; margin:16px 0 8px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
-    p { margin:0 0 12px; color:var(--muted); }
+    :root {
+      color-scheme: light dark;
+      --bg:#f5f4ef; --surface:#ffffff; --surface-2:#f1efea; --text:#231f18; --muted:#706c63;
+      --primary:#01696f; --primary-2:#0d5157; --border:#d9d5ce; --danger:#8b2d2d; --danger-2:#6e2020;
+      --pill:#e6f1ef; --shadow:0 10px 24px rgba(26,24,19,.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#151412; --surface:#1d1b18; --surface-2:#24211d; --text:#ece7dd; --muted:#aca496;
+        --primary:#4f98a3; --primary-2:#3b7b84; --border:#38342f; --danger:#ba5d5d; --danger-2:#9f4848;
+        --pill:#213336; --shadow:0 12px 28px rgba(0,0,0,.3);
+      }
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; width:360px; font:14px/1.45 Inter,system-ui,sans-serif; background:linear-gradient(180deg,var(--bg),var(--surface-2));
+      color:var(--text); padding:16px;
+    }
+    .shell {
+      background:color-mix(in srgb, var(--surface) 92%, transparent);
+      border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:var(--shadow);
+      backdrop-filter:blur(10px);
+    }
+    .topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+    .brand h1 { font-size:18px; margin:0; letter-spacing:-.02em; }
+    .brand p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+    .status { font-size:12px; font-weight:700; color:var(--primary); background:var(--pill); border-radius:999px; padding:6px 10px; }
+    .slider-wrap { padding:14px; background:var(--surface-2); border:1px solid var(--border); border-radius:16px; }
     .row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .label { color:var(--muted); font-weight:600; }
+    .value { font-size:24px; font-weight:800; letter-spacing:-.03em; }
     input[type="range"] { width:100%; accent-color:var(--primary); }
-    .value { font-weight:700; min-width:60px; text-align:right; }
+    .presets { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:12px; }
+    .preset, .btn, .mini-btn {
+      border:0; border-radius:12px; cursor:pointer; font-weight:700; transition:transform .14s ease, filter .14s ease, background .14s ease;
+    }
+    .preset { padding:10px 0; background:var(--surface); color:var(--text); border:1px solid var(--border); }
+    .preset:hover, .btn:hover, .mini-btn:hover { filter:brightness(1.03); transform:translateY(-1px); }
     .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
-    button { border:0; border-radius:10px; padding:10px 12px; color:#fff; font-weight:600; cursor:pointer; }
-    #reset { background:var(--primary); }
-    #mute { background:var(--danger); }
-    .tab-list { display:grid; gap:8px; max-height:180px; overflow:auto; }
-    .tab-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:color-mix(in srgb, var(--surface) 85%, transparent); }
-    .tab-main { min-width:0; }
-    .tab-title { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
-    .tab-url { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
-    .pill { font-size:12px; font-weight:700; color:#fff; background:var(--primary); border-radius:999px; padding:4px 8px; }
-    .empty { color:var(--muted); font-size:13px; padding:10px 2px 2px; }
+    .btn { padding:11px 12px; color:#fff; }
+    .btn-primary { background:linear-gradient(180deg,var(--primary),var(--primary-2)); }
+    .btn-danger { background:linear-gradient(180deg,var(--danger),var(--danger-2)); }
+    .section-head { display:flex; align-items:center; justify-content:space-between; margin:16px 0 10px; }
+    .section-head h2 { margin:0; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+    .count { font-size:12px; color:var(--muted); }
+    .tab-list { display:grid; gap:10px; max-height:240px; overflow:auto; }
+    .tab-item {
+      display:grid; grid-template-columns:1fr auto; gap:10px; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--surface);
+    }
+    .tab-open { cursor:pointer; }
+    .tab-open:hover { background:color-mix(in srgb, var(--surface) 70%, var(--surface-2)); }
+    .tab-title { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+    .tab-url { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; margin-top:2px; }
+    .tab-meta { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+    .pill { font-size:11px; font-weight:800; color:var(--primary); background:var(--pill); border-radius:999px; padding:4px 8px; }
+    .mini-actions { display:grid; gap:8px; align-content:start; }
+    .mini-btn { min-width:58px; padding:8px 10px; color:#fff; font-size:12px; }
+    .mini-primary { background:var(--primary); }
+    .mini-danger { background:var(--danger); }
+    .empty { color:var(--muted); font-size:13px; padding:14px; text-align:center; background:var(--surface-2); border:1px dashed var(--border); border-radius:14px; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>BoomPilot</h1>
-    <p>Steer the volume of the current tab.</p>
-    <div class="row"><label for="volume">Level</label><div id="value" class="value">100%</div></div>
-    <input id="volume" type="range" min="0" max="500" step="1" value="100">
-    <div class="actions">
-      <button id="reset">Reset</button>
-      <button id="mute">Mute</button>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <h1>BoomPilot</h1>
+        <p>Per-tab audio control with quick actions.</p>
+      </div>
+      <div id="status" class="status">Normal</div>
     </div>
-    <h2>Changed tabs</h2>
+
+    <div class="slider-wrap">
+      <div class="row">
+        <div class="label">Current tab</div>
+        <div id="value" class="value">100%</div>
+      </div>
+      <input id="volume" type="range" min="0" max="500" step="1" value="100">
+      <div class="presets">
+        <button class="preset" data-volume="0">0</button>
+        <button class="preset" data-volume="50">50</button>
+        <button class="preset" data-volume="100">100</button>
+        <button class="preset" data-volume="200">200</button>
+        <button class="preset" data-volume="500">500</button>
+      </div>
+      <div class="actions">
+        <button id="reset" class="btn btn-primary">Reset</button>
+        <button id="mute" class="btn btn-danger">Mute</button>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>Changed tabs</h2>
+      <div id="count" class="count">0 tabs</div>
+    </div>
     <div id="changedTabs" class="tab-list"></div>
   </div>
   <script src="popup.js"></script>
