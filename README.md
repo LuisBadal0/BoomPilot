@@ -32,14 +32,15 @@ Firefox gives you basic tab mute controls, but sometimes that is not enough. Boo
 
 BoomPilot injects a content script into pages and adjusts audio/video elements on supported sites. On pages that allow Web Audio processing, it uses gain control for boosting above normal volume; on simpler pages, it falls back to direct media element controls.
 
-## Install locally
+## Install
 
-1. Download or clone this repository.
+BoomPilot is distributed as a Mozilla-signed `.xpi` file for safer installation in Firefox.
+
+1. Download the latest signed `.xpi` file from the releases page.
 2. Open Firefox.
-3. Go to `about:debugging`.
-4. Click **This Firefox**.
-5. Click **Load Temporary Add-on**.
-6. Select `manifest.json` from the project folder.
+3. Open the downloaded `.xpi` file.
+4. Firefox will display an installation prompt.
+5. Click **Add** to install the extension.
 
 ## Usage
 
