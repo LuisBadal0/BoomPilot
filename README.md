@@ -1,7 +1,6 @@
 <div align="center">
 
-# BoomPilot
-
+# BoomPilot ![BoomPilot Icon](assets/icon.svg)
 **Per-tab volume control for Firefox with live updates, quick presets, and a clean changed-tabs dashboard.**
 
 </div>
