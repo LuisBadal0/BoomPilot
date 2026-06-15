@@ -14,13 +14,23 @@ function normalizeState(input = {}) {
   };
 }
 
+let pageContext = null;
+
+function getContext() {
+  if (!pageContext) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    pageContext = new AudioContextClass();
+  }
+  return pageContext;
+}
+
 function createNodes(media) {
   if (mediaState.has(media)) return mediaState.get(media);
 
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return null;
+  const context = getContext();
+  if (!context) return null;
 
-  const context = new AudioContextClass();
   const source = context.createMediaElementSource(media);
   const voice = context.createBiquadFilter();
   const bass = context.createBiquadFilter();
@@ -73,8 +83,16 @@ function startObserver() {
   if (observerStarted) return;
   observerStarted = true;
 
+  let debounceTimer = null;
+  const debouncedApply = () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      applySettings(latestState);
+    }, 50);
+  };
+
   const observer = new MutationObserver(() => {
-    applySettings(latestState);
+    debouncedApply();
   });
 
   observer.observe(document.documentElement || document.body, {
