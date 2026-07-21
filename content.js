@@ -1,7 +1,6 @@
 const mediaState = new WeakMap();
 let latestState = { volume: 100, voiceBoost: 0, bassBoost: 0 };
 let observerStarted = false;
-let sharedContext = null;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -15,56 +14,39 @@ function normalizeState(input = {}) {
   };
 }
 
-function getSharedContext() {
-  if (!sharedContext) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return null;
-    sharedContext = new AudioContextClass();
-  }
-  return sharedContext;
-}
-
 function createNodes(media) {
   if (mediaState.has(media)) return mediaState.get(media);
 
-  const context = getSharedContext();
-  if (!context) return null;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
 
-  try {
-    const source = context.createMediaElementSource(media);
-    const voice = context.createBiquadFilter();
-    const bass = context.createBiquadFilter();
-    const gain = context.createGain();
+  const context = new AudioContextClass();
+  const source = context.createMediaElementSource(media);
+  const voice = context.createBiquadFilter();
+  const bass = context.createBiquadFilter();
+  const gain = context.createGain();
 
-    voice.type = 'peaking';
-    voice.frequency.value = 2500;
-    voice.Q.value = 1.2;
-    voice.gain.value = 0;
+  voice.type = 'peaking';
+  voice.frequency.value = 2500;
+  voice.Q.value = 1.2;
+  voice.gain.value = 0;
 
-    bass.type = 'lowshelf';
-    bass.frequency.value = 200;
-    bass.gain.value = 0;
+  bass.type = 'lowshelf';
+  bass.frequency.value = 200;
+  bass.gain.value = 0;
 
-    gain.gain.value = 1;
-    source.connect(voice);
-    voice.connect(bass);
-    bass.connect(gain);
-    gain.connect(context.destination);
+  gain.gain.value = 1;
+  source.connect(voice);
+  voice.connect(bass);
+  bass.connect(gain);
+  gain.connect(context.destination);
 
-    const state = { context, source, voice, bass, gain, media };
-    mediaState.set(media, state);
-    
-    media.addEventListener('play', () => {
-      if (context.state === 'suspended') {
-        context.resume().catch(() => {});
-      }
-    });
-    
-    return state;
-  } catch (e) {
-    console.warn('Could not connect to media element source (likely CORS):', media, e);
-    return null;
-  }
+  const state = { context, source, voice, bass, gain, media };
+  mediaState.set(media, state);
+  media.addEventListener('play', () => {
+    if (context.state === 'suspended') context.resume().catch(() => {});
+  });
+  return state;
 }
 
 function applyToMedia(media, settings) {
