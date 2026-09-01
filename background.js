@@ -1,6 +1,7 @@
 const tabState = new Map();
 const injectedTabs = new Set();
 const DEFAULT_STATE = Object.freeze({ volume: 100, voiceBoost: 0, bassBoost: 0 });
+const STORAGE_KEY = 'boompilot_tabState_v1';
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -35,10 +36,39 @@ function isInjectableUrl(url = '') {
   return /^https?:/i.test(url);
 }
 
+function getStorageArea() {
+  // storage.session is ideal for tabState (cleared on browser close, not on suspend)
+  // Fallback to storage.local for older Firefox.
+  try {
+    if (browser.storage.session) return browser.storage.session;
+  } catch {}
+  return browser.storage.local;
+}
+
+async function persistTabState() {
+  try {
+    const area = getStorageArea();
+    await area.set({ [STORAGE_KEY]: Array.from(tabState.entries()) });
+  } catch {}
+}
+
+async function restoreTabState() {
+  try {
+    const area = getStorageArea();
+    const data = await area.get(STORAGE_KEY);
+    const entries = data && data[STORAGE_KEY];
+    if (Array.isArray(entries)) {
+      for (const [tabId, state] of entries) {
+        if (typeof tabId === 'number') tabState.set(tabId, normalizeState(state));
+      }
+    }
+  } catch {}
+}
+
 async function ensureContentScript(tabId) {
   if (injectedTabs.has(tabId)) return true;
   try {
-    await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' });
+    await browser.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
     injectedTabs.add(tabId);
     return true;
   } catch {
@@ -54,11 +84,11 @@ async function updateBadge(tabId) {
   if (typeof tabId !== 'number') return;
 
   const state = getOrCreateState(tabId);
-  await browser.browserAction.setBadgeBackgroundColor({ tabId, color: '#d96a45' });
-  if (browser.browserAction.setBadgeTextColor) {
-    await browser.browserAction.setBadgeTextColor({ tabId, color: '#ffffff' });
+  await browser.action.setBadgeBackgroundColor({ tabId, color: '#d96a45' });
+  if (browser.action.setBadgeTextColor) {
+    await browser.action.setBadgeTextColor({ tabId, color: '#ffffff' });
   }
-  await browser.browserAction.setBadgeText({ tabId, text: getBadgeTextForState(state) });
+  await browser.action.setBadgeText({ tabId, text: getBadgeTextForState(state) });
 }
 
 browser.runtime.onMessage.addListener((message = {}, sender = {}) => {
@@ -75,8 +105,11 @@ browser.runtime.onMessage.addListener((message = {}, sender = {}) => {
     const previous = getOrCreateState(tabId);
     const next = normalizeState(message);
     tabState.set(tabId, next);
+    persistTabState();
 
-    if (next.volume !== previous.volume) updateBadge(tabId);
+    if (next.volume !== previous.volume || next.voiceBoost !== previous.voiceBoost || next.bassBoost !== previous.bassBoost) {
+      updateBadge(tabId);
+    }
     return Promise.resolve({ ok: true });
   }
 
@@ -91,7 +124,7 @@ browser.runtime.onMessage.addListener((message = {}, sender = {}) => {
           audible: tab.audible,
           ...getOrCreateState(tab.id)
         }))
-        .filter(isChanged)
+        .filter((item) => isChanged(item))
     }));
   }
 
@@ -108,12 +141,21 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 browser.tabs.onRemoved.addListener((tabId) => {
   tabState.delete(tabId);
   injectedTabs.delete(tabId);
+  persistTabState();
   updateBadge();
 });
 
 browser.runtime.onInstalled.addListener(async () => {
+  await restoreTabState();
   const tabs = await browser.tabs.query({});
   for (const tab of tabs) {
     if (tab.id && isInjectableUrl(tab.url)) ensureContentScript(tab.id);
   }
 });
+
+browser.runtime.onStartup.addListener(async () => {
+  await restoreTabState();
+});
+
+// Restore immediately on background load (MV3 service worker restart)
+restoreTabState();

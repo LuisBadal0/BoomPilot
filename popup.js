@@ -24,9 +24,15 @@ function isInjectableUrl(url = '') {
   return /^https?:/i.test(url);
 }
 
+async function injectContentScript(tabId) {
+  try {
+    await browser.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+  } catch {}
+}
+
 async function sendAudioState(tabId, state) {
   if (!canControlActiveTab) throw new Error('Unsupported tab');
-  await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' }).catch(() => {});
+  await injectContentScript(tabId);
   await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...state });
   await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...state });
 }
@@ -244,7 +250,7 @@ async function refreshChangedTabs(activeTabId) {
       const tabId = Number(node.dataset.muteTab);
       const next = { volume: 0, voiceBoost: 0, bassBoost: 0 };
       await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...next });
-      try { await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' }); } catch {}
+      await injectContentScript(tabId);
       try { await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...next }); } catch {}
       if (tabId === currentActiveTabId) updateEffectsView(next);
       await refreshChangedTabs(activeTabId);
@@ -257,7 +263,7 @@ async function refreshChangedTabs(activeTabId) {
       const tabId = Number(node.dataset.resetTab);
       const next = { volume: 100, voiceBoost: 0, bassBoost: 0 };
       await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...next });
-      try { await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' }); } catch {}
+      await injectContentScript(tabId);
       try { await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...next }); } catch {}
       if (tabId === currentActiveTabId) updateEffectsView(next);
       await refreshChangedTabs(activeTabId);

@@ -1,6 +1,8 @@
 const mediaState = new WeakMap();
+let sharedContext = null;
 let latestState = { volume: 100, voiceBoost: 0, bassBoost: 0 };
 let observerStarted = false;
+let observerTimer = null;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -14,14 +16,36 @@ function normalizeState(input = {}) {
   };
 }
 
+function getSharedContext() {
+  if (sharedContext) return sharedContext;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  sharedContext = new AudioContextClass();
+  return sharedContext;
+}
+
 function createNodes(media) {
   if (mediaState.has(media)) return mediaState.get(media);
 
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return null;
+  const context = getSharedContext();
+  if (!context) {
+    const fallback = { fallback: true, media };
+    mediaState.set(media, fallback);
+    return fallback;
+  }
 
-  const context = new AudioContextClass();
-  const source = context.createMediaElementSource(media);
+  let source;
+  try {
+    source = context.createMediaElementSource(media);
+  } catch {
+    // Cross-origin media cannot be routed through Web Audio without going
+    // silent. Fall back to direct element volume so the tab stays controllable
+    // (no boost, but no silence either).
+    const fallback = { fallback: true, media };
+    mediaState.set(media, fallback);
+    return fallback;
+  }
+
   const voice = context.createBiquadFilter();
   const bass = context.createBiquadFilter();
   const gain = context.createGain();
@@ -53,6 +77,12 @@ function applyToMedia(media, settings) {
   const nodes = createNodes(media);
   if (!nodes) return;
 
+  if (nodes.fallback) {
+    // Direct element control: 0-100% only, no boost above normal volume.
+    nodes.media.volume = clamp(settings.volume / 100, 0, 1);
+    return;
+  }
+
   nodes.gain.gain.value = clamp(settings.volume / 100, 0, 5);
   nodes.voice.gain.value = clamp((settings.voiceBoost / 100) * 12, 0, 12);
   nodes.bass.gain.value = clamp((settings.bassBoost / 100) * 15, 0, 15);
@@ -74,10 +104,16 @@ function startObserver() {
   observerStarted = true;
 
   const observer = new MutationObserver(() => {
-    applySettings(latestState);
+    if (observerTimer) return;
+    observerTimer = setTimeout(() => {
+      observerTimer = null;
+      applySettings(latestState);
+    }, 150);
   });
 
-  observer.observe(document.documentElement || document.body, {
+  const target = document.documentElement || document.body;
+  if (!target) return;
+  observer.observe(target, {
     childList: true,
     subtree: true
   });
