@@ -85,10 +85,15 @@ if (globalThis.__boompilotInjected) {
 
     if (nodes.fallback) {
       // Direct element control: 0-100% only, no boost above normal volume.
+      nodes.media.muted = settings.volume === 0;
       nodes.media.volume = clamp(settings.volume / 100, 0, 1);
       return;
     }
 
+    // For Web Audio path, keep element unmuted/volume=1 and control via gain,
+    // but also sync muted flag for robustness when volume is 0.
+    nodes.media.muted = settings.volume === 0;
+    if (!nodes.media.muted) nodes.media.volume = 1;
     nodes.gain.gain.value = clamp(settings.volume / 100, 0, 5);
     nodes.voice.gain.value = clamp((settings.voiceBoost / 100) * 12, 0, 12);
     nodes.bass.gain.value = clamp((settings.bassBoost / 100) * 15, 0, 15);
