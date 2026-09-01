@@ -22,7 +22,8 @@
     "default_icon": "assets/icon.svg"
   },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["background.js"],
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {

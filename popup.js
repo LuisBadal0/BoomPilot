@@ -30,10 +30,25 @@ async function injectContentScript(tabId) {
   } catch {}
 }
 
+async function sendWithFallback(tabId, payload) {
+  try {
+    await browser.tabs.sendMessage(tabId, payload);
+    return true;
+  } catch {
+    await injectContentScript(tabId);
+    try {
+      await browser.tabs.sendMessage(tabId, payload);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 async function sendAudioState(tabId, state) {
   if (!canControlActiveTab) throw new Error('Unsupported tab');
-  await injectContentScript(tabId);
-  await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...state });
+  const ok = await sendWithFallback(tabId, { type: 'SET_AUDIO_STATE', ...state });
+  if (!ok) throw new Error('No receiver');
   await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...state });
 }
 
@@ -250,8 +265,7 @@ async function refreshChangedTabs(activeTabId) {
       const tabId = Number(node.dataset.muteTab);
       const next = { volume: 0, voiceBoost: 0, bassBoost: 0 };
       await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...next });
-      await injectContentScript(tabId);
-      try { await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...next }); } catch {}
+      await sendWithFallback(tabId, { type: 'SET_AUDIO_STATE', ...next });
       if (tabId === currentActiveTabId) updateEffectsView(next);
       await refreshChangedTabs(activeTabId);
     });
@@ -263,8 +277,7 @@ async function refreshChangedTabs(activeTabId) {
       const tabId = Number(node.dataset.resetTab);
       const next = { volume: 100, voiceBoost: 0, bassBoost: 0 };
       await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...next });
-      await injectContentScript(tabId);
-      try { await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...next }); } catch {}
+      await sendWithFallback(tabId, { type: 'SET_AUDIO_STATE', ...next });
       if (tabId === currentActiveTabId) updateEffectsView(next);
       await refreshChangedTabs(activeTabId);
     });
