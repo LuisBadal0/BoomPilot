@@ -12,12 +12,33 @@ function shortUrl(url) {
 }
 
 let liveUpdateTimer = null;
+let refreshTimer = null;
 let currentActiveTabId = null;
 let canControlActiveTab = true;
 
 function scheduleLiveUpdate(callback) {
   clearTimeout(liveUpdateTimer);
-  liveUpdateTimer = setTimeout(callback, 16);
+  // 16ms re-injected content.js + queried all tabs on every tick during
+  // a slider drag. 80ms is still fluid but ~5x less IPC.
+  liveUpdateTimer = setTimeout(callback, 80);
+}
+
+function scheduleChangedTabsRefresh(activeTabId, delay = 600) {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => refreshChangedTabs(activeTabId).catch(() => {}), delay);
+}
+
+// Inject at most once: ping first, only executeScript if no listener yet.
+// The old code called executeScript on EVERY slider tick, stacking a new
+// MutationObserver + message listener + AudioContext per tick.
+async function ensureContentScript(tabId) {
+  try {
+    await browser.tabs.sendMessage(tabId, { type: 'PING' });
+    return;
+  } catch {}
+  try {
+    await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' });
+  } catch {}
 }
 
 function isInjectableUrl(url = '') {
@@ -26,7 +47,7 @@ function isInjectableUrl(url = '') {
 
 async function sendAudioState(tabId, state) {
   if (!canControlActiveTab) throw new Error('Unsupported tab');
-  await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' }).catch(() => {});
+  await ensureContentScript(tabId);
   await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...state });
   await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...state });
 }
@@ -244,7 +265,7 @@ async function refreshChangedTabs(activeTabId) {
       const tabId = Number(node.dataset.muteTab);
       const next = { volume: 0, voiceBoost: 0, bassBoost: 0 };
       await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...next });
-      try { await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' }); } catch {}
+      try { await ensureContentScript(tabId); } catch {}
       try { await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...next }); } catch {}
       if (tabId === currentActiveTabId) updateEffectsView(next);
       await refreshChangedTabs(activeTabId);
@@ -257,7 +278,7 @@ async function refreshChangedTabs(activeTabId) {
       const tabId = Number(node.dataset.resetTab);
       const next = { volume: 100, voiceBoost: 0, bassBoost: 0 };
       await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...next });
-      try { await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' }); } catch {}
+      try { await ensureContentScript(tabId); } catch {}
       try { await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...next }); } catch {}
       if (tabId === currentActiveTabId) updateEffectsView(next);
       await refreshChangedTabs(activeTabId);
@@ -298,13 +319,17 @@ async function refreshChangedTabs(activeTabId) {
   updateEffectsView(currentState);
   await refreshChangedTabs(tab.id);
 
-  async function updateState(patch) {
+  async function updateState(patch, { refresh = true } = {}) {
     const next = { volume: Number(slider.value), voiceBoost: currentState.voiceBoost, bassBoost: currentState.bassBoost, ...patch };
     currentState = next;
     updateEffectsView(next);
     try {
       await sendAudioState(tab.id, next);
-      await refreshChangedTabs(tab.id);
+      // tabs.query + full list rebuild on every 16ms tick was a major
+      // source of popup jank. Refresh immediately only for discrete
+      // actions; live slider drags use a debounced refresh instead.
+      if (refresh) await refreshChangedTabs(tab.id);
+      else scheduleChangedTabsRefresh(tab.id);
     } catch {
       document.getElementById('value').textContent = 'Reload tab';
     }
@@ -314,10 +339,10 @@ async function refreshChangedTabs(activeTabId) {
     const volume = Number(slider.value);
     document.getElementById('value').textContent = `${volume}%`;
     updateStatus(volume);
-    scheduleLiveUpdate(() => updateState({ volume }));
+    scheduleLiveUpdate(() => updateState({ volume }, { refresh: false }));
   });
 
-  slider.addEventListener('change', () => updateState({ volume: Number(slider.value) }));
+  slider.addEventListener('change', () => updateState({ volume: Number(slider.value) }, { refresh: true }));
 
   for (const button of effectButtons) {
     button.addEventListener('click', () => {

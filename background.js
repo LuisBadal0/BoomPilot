@@ -89,9 +89,9 @@ browser.runtime.onMessage.addListener((message = {}, sender = {}) => {
           url: tab.url,
           favIconUrl: tab.favIconUrl,
           audible: tab.audible,
-          ...getOrCreateState(tab.id)
+          ...(tabState.get(tab.id) || { ...DEFAULT_STATE })
         }))
-        .filter(isChanged)
+        .filter((item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0)
     }));
   }
 
