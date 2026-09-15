@@ -10,7 +10,7 @@ BoomPilot is a Firefox extension built for people who want tighter control over 
 ## Preview
 
 <p align="center">
-  <img src="./assets/boompilot-ui.jpg" alt="BoomPilot popup UI" width="380" />
+  <img src="./assets/boompilot-ui.png" alt="BoomPilot popup UI" width="380" />
 </p>
 
 ## Why BoomPilot?
