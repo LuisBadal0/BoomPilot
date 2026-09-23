@@ -165,8 +165,10 @@ function updateEffectsView(state) {
   updateStatus(state.volume);
 }
 
+const FALLBACK_FAVICON = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 18 18%22%3E%3Crect width=%2218%22 height=%2218%22 rx=%224%22 fill=%22%23d9d5ce%22/%3E%3Cpath d=%22M5 9h8M9 5v8%22 stroke=%22%23706c63%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/%3E%3C/svg%3E';
+
 function safeFaviconSrc(url) {
-  return /^https?:/i.test(url || '') ? url : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 18 18%22%3E%3Crect width=%2218%22 height=%2218%22 rx=%224%22 fill=%22%23d9d5ce%22/%3E%3Cpath d=%22M5 9h8M9 5v8%22 stroke=%22%23706c63%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/%3E%3C/svg%3E';
+  return typeof url === 'string' && /^(?:https?:|data:image\/)/i.test(url) ? url : FALLBACK_FAVICON;
 }
 
 async function refreshChangedTabs(activeTabId) {
@@ -196,6 +198,7 @@ async function refreshChangedTabs(activeTabId) {
     favicon.className = 'tab-favicon';
     favicon.alt = '';
     favicon.referrerPolicy = 'no-referrer';
+    favicon.addEventListener('error', () => { favicon.src = FALLBACK_FAVICON; }, { once: true });
     favicon.src = safeFaviconSrc(item.favIconUrl);
 
     const main = document.createElement('div');
