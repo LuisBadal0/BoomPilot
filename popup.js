@@ -156,9 +156,20 @@ function updateEffectButtons(state) {
   }
 }
 
+function updateVolumeControls(volume) {
+  const slider = document.getElementById('volume');
+  slider.value = String(volume);
+  slider.style.setProperty('--volume-progress', `${volume / 5}%`);
+  for (const button of document.querySelectorAll('.preset')) {
+    const active = Number(button.dataset.volume) === volume;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  }
+}
+
 function updateEffectsView(state) {
   document.getElementById('value').textContent = `${state.volume}%`;
-  document.getElementById('volume').value = String(state.volume);
+  updateVolumeControls(state.volume);
   document.getElementById('voiceValue').textContent = effectLabel(state.voiceBoost);
   document.getElementById('bassValue').textContent = effectLabel(state.bassBoost);
   updateEffectButtons(state);
@@ -190,9 +201,11 @@ async function refreshChangedTabs(activeTabId) {
     const row = document.createElement('div');
     row.className = 'tab-item';
 
-    const open = document.createElement('div');
+    const open = document.createElement('button');
     open.className = 'tab-open';
+    open.type = 'button';
     open.dataset.openTab = String(item.tabId);
+    open.setAttribute('aria-label', `Switch to ${item.title || 'Untitled tab'}`);
 
     const favicon = document.createElement('img');
     favicon.className = 'tab-favicon';
@@ -201,18 +214,18 @@ async function refreshChangedTabs(activeTabId) {
     favicon.addEventListener('error', () => { favicon.src = FALLBACK_FAVICON; }, { once: true });
     favicon.src = safeFaviconSrc(item.favIconUrl);
 
-    const main = document.createElement('div');
+    const main = document.createElement('span');
     main.className = 'tab-main';
 
-    const title = document.createElement('div');
+    const title = document.createElement('span');
     title.className = 'tab-title';
     title.textContent = `${item.title || 'Untitled tab'}${item.tabId === activeTabId ? ' • current' : ''}`;
 
-    const url = document.createElement('div');
+    const url = document.createElement('span');
     url.className = 'tab-url';
     url.textContent = shortUrl(item.url);
 
-    const meta = document.createElement('div');
+    const meta = document.createElement('span');
     meta.className = 'tab-meta';
 
     for (const token of [`${item.volume}%`, item.voiceBoost ? `Voice ${item.voiceBoost}%` : null, item.bassBoost ? `Bass ${item.bassBoost}%` : null, item.audible ? 'Playing' : null]) {
@@ -341,6 +354,7 @@ async function refreshChangedTabs(activeTabId) {
   slider.addEventListener('input', () => {
     const volume = Number(slider.value);
     document.getElementById('value').textContent = `${volume}%`;
+    updateVolumeControls(volume);
     updateStatus(volume);
     scheduleLiveUpdate(() => updateState({ volume }, { refresh: false }));
   });
