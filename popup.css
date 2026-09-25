@@ -351,11 +351,29 @@ html:not(.theme-animate) .theme-thumb {
 }
 
 .scale-labels {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 14px;
   color: var(--hero-muted);
   font-size: 10px;
   font-weight: 700;
+}
+
+.scale-labels span {
+  position: absolute;
+  top: 0;
+}
+
+.scale-start {
+  left: 0;
+}
+
+.scale-normal {
+  left: 20%;
+  transform: translateX(-50%);
+}
+
+.scale-end {
+  right: 0;
 }
 
 .presets-label {
