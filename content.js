@@ -6,7 +6,6 @@
 
   const mediaState = new WeakMap();
   let latestState = { volume: 100, voiceBoost: 0, bassBoost: 0 };
-  let observerStarted = false;
   let pendingApply = false;
 
   function clamp(value, min, max) {
@@ -53,7 +52,7 @@
       bass.connect(gain);
       gain.connect(context.destination);
 
-      const state = { context, source, voice, bass, gain, media };
+      const state = { context, source, voice, bass, gain };
       mediaState.set(media, state);
       media.addEventListener('play', () => {
         if (context.state === 'suspended') context.resume().catch(() => {});
@@ -121,9 +120,6 @@
   }
 
   function startObserver() {
-    if (observerStarted) return;
-    observerStarted = true;
-
     const observer = new MutationObserver((mutations) => {
       // Ignore text/attribute churn (typing, YouTube progress bars, etc).
       // Only re-scan when elements that could contain media were added.

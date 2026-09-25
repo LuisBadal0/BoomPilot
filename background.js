@@ -18,6 +18,10 @@ function isChanged(state) {
   return state.volume !== 100 || state.voiceBoost !== 0 || state.bassBoost !== 0;
 }
 
+function getMessageTabId(message, sender) {
+  return typeof sender.tab?.id === 'number' ? sender.tab.id : message.tabId;
+}
+
 function getOrCreateState(tabId) {
   const existing = tabState.get(tabId);
   if (existing) return existing;
@@ -63,13 +67,13 @@ async function updateBadge(tabId) {
 
 browser.runtime.onMessage.addListener((message = {}, sender = {}) => {
   if (message.type === 'GET_TAB_AUDIO_STATE') {
-    const tabId = sender.tab && typeof sender.tab.id === 'number' ? sender.tab.id : message.tabId;
+    const tabId = getMessageTabId(message, sender);
     if (typeof tabId !== 'number') return Promise.resolve({ ...DEFAULT_STATE });
     return Promise.resolve(getOrCreateState(tabId));
   }
 
   if (message.type === 'SAVE_TAB_AUDIO_STATE') {
-    const tabId = sender.tab && typeof sender.tab.id === 'number' ? sender.tab.id : message.tabId;
+    const tabId = getMessageTabId(message, sender);
     if (typeof tabId !== 'number') return Promise.resolve({ ok: false });
 
     const previous = getOrCreateState(tabId);
@@ -91,7 +95,7 @@ browser.runtime.onMessage.addListener((message = {}, sender = {}) => {
           audible: tab.audible,
           ...(tabState.get(tab.id) || { ...DEFAULT_STATE })
         }))
-        .filter((item) => item.volume !== 100 || item.voiceBoost !== 0 || item.bassBoost !== 0)
+        .filter(isChanged)
     }));
   }
 
