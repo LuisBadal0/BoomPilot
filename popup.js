@@ -14,6 +14,7 @@ function shortUrl(url) {
 let liveUpdateTimer = null;
 let refreshTimer = null;
 let currentActiveTabId = null;
+let currentState = null;
 let canControlActiveTab = true;
 
 function scheduleLiveUpdate(callback) {
@@ -117,7 +118,7 @@ function getCurrentTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-async function applyTheme(theme) {
+function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   const toggle = document.getElementById('themeToggle');
   if (toggle) {
@@ -136,7 +137,7 @@ async function initTheme() {
     const stored = await browser.storage.local.get('theme');
     if (stored.theme === 'dark' || stored.theme === 'light') theme = stored.theme;
   } catch {}
-  await applyTheme(theme);
+  applyTheme(theme);
 }
 
 function effectLabel(value) {
@@ -169,6 +170,19 @@ const FALLBACK_FAVICON = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2
 
 function safeFaviconSrc(url) {
   return typeof url === 'string' && /^(?:https?:|data:image\/)/i.test(url) ? url : FALLBACK_FAVICON;
+}
+
+async function setChangedTabState(tabId, state, activeTabId) {
+  await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...state });
+  await ensureContentScript(tabId);
+  try {
+    await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...state });
+  } catch {}
+  if (tabId === currentActiveTabId) {
+    currentState = state;
+    updateEffectsView(state);
+  }
+  await refreshChangedTabs(activeTabId);
 }
 
 async function refreshChangedTabs(activeTabId) {
@@ -267,11 +281,7 @@ async function refreshChangedTabs(activeTabId) {
       event.stopPropagation();
       const tabId = Number(node.dataset.muteTab);
       const next = { volume: 0, voiceBoost: 0, bassBoost: 0 };
-      await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...next });
-      try { await ensureContentScript(tabId); } catch {}
-      try { await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...next }); } catch {}
-      if (tabId === currentActiveTabId) updateEffectsView(next);
-      await refreshChangedTabs(activeTabId);
+      await setChangedTabState(tabId, next, activeTabId);
     });
   }
 
@@ -280,11 +290,7 @@ async function refreshChangedTabs(activeTabId) {
       event.stopPropagation();
       const tabId = Number(node.dataset.resetTab);
       const next = { volume: 100, voiceBoost: 0, bassBoost: 0 };
-      await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...next });
-      try { await ensureContentScript(tabId); } catch {}
-      try { await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...next }); } catch {}
-      if (tabId === currentActiveTabId) updateEffectsView(next);
-      await refreshChangedTabs(activeTabId);
+      await setChangedTabState(tabId, next, activeTabId);
     });
   }
 }
@@ -303,7 +309,7 @@ async function refreshChangedTabs(activeTabId) {
   if (themeToggle) {
     themeToggle.addEventListener('change', async () => {
       const nextTheme = themeToggle.checked ? 'dark' : 'light';
-      await applyTheme(nextTheme);
+      applyTheme(nextTheme);
       try { await browser.storage.local.set({ theme: nextTheme }); } catch {}
     });
   }
@@ -318,7 +324,7 @@ async function refreshChangedTabs(activeTabId) {
     return;
   }
 
-  let currentState = await browser.runtime.sendMessage({ type: 'GET_TAB_AUDIO_STATE', tabId: tab.id });
+  currentState = await browser.runtime.sendMessage({ type: 'GET_TAB_AUDIO_STATE', tabId: tab.id });
   updateEffectsView(currentState);
   await refreshChangedTabs(tab.id);
 
