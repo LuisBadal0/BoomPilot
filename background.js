@@ -1,5 +1,4 @@
 const tabState = new Map();
-const injectedTabs = new Set();
 const DEFAULT_STATE = Object.freeze({ volume: 100, voiceBoost: 0, bassBoost: 0 });
 
 function clamp(value, min, max) {
@@ -40,14 +39,10 @@ function isInjectableUrl(url = '') {
 }
 
 async function ensureContentScript(tabId) {
-  if (injectedTabs.has(tabId)) return true;
+  // content.js guards against double-injection itself.
   try {
     await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' });
-    injectedTabs.add(tabId);
-    return true;
-  } catch {
-    return false;
-  }
+  } catch {}
 }
 
 async function updateBadge(tabId) {
@@ -105,13 +100,11 @@ browser.runtime.onMessage.addListener((message = {}, sender = {}) => {
 browser.tabs.onActivated.addListener(({ tabId }) => updateBadge(tabId));
 
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'loading') injectedTabs.delete(tabId);
   if (changeInfo.status === 'complete' && tab && isInjectableUrl(tab.url)) updateBadge(tabId);
 });
 
 browser.tabs.onRemoved.addListener((tabId) => {
   tabState.delete(tabId);
-  injectedTabs.delete(tabId);
   updateBadge();
 });
 
