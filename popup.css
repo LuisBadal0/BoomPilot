@@ -408,7 +408,7 @@ html:not(.theme-animate) .theme-thumb {
   cursor: pointer;
 }
 
-.preset:hover,
+.preset:hover:not(:disabled),
 .preset.is-active {
   color: var(--hero-active-ink);
   background: var(--hero-accent);
@@ -464,9 +464,9 @@ html:not(.theme-animate) .theme-thumb {
   border: 1px solid color-mix(in srgb, var(--danger) 24%, transparent);
 }
 
-.icon-btn:hover,
-.effect-preset:hover,
-.mini-btn:hover {
+.icon-btn:hover:not(:disabled),
+.effect-preset:hover:not(:disabled),
+.mini-btn:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 

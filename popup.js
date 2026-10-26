@@ -365,7 +365,13 @@ async function refreshChangedTabs(activeTabId) {
     scheduleLiveUpdate(() => updateState({ volume }, { refresh: false }));
   });
 
-  slider.addEventListener('change', () => updateState({ volume: Number(slider.value) }, { refresh: true }));
+  slider.addEventListener('change', () => {
+    // The final value is sent right away, so drop the pending live tick
+    // and debounced refresh instead of sending the same state twice.
+    clearTimeout(liveUpdateTimer);
+    clearTimeout(refreshTimer);
+    updateState({ volume: Number(slider.value) }, { refresh: true });
+  });
 
   for (const button of effectButtons) {
     button.addEventListener('click', () => {
