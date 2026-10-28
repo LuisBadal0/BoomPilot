@@ -7,115 +7,100 @@
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
-    <main class="shell">
-      <header class="topbar">
+    <main class="app">
+      <header class="header">
         <div class="brand">
-          <div class="brand-mark"><img src="assets/icon.svg" alt=""></div>
-          <div class="brand-copy">
-            <div class="eyebrow">Audio control</div>
-            <h1>BoomPilot</h1>
-          </div>
+          <img class="brand-icon" src="assets/icon.svg" alt="">
+          <span class="brand-name">BoomPilot</span>
         </div>
 
-        <div class="topbar-right">
-          <label class="theme-switch">
-            <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode">
-            <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="4"></circle>
-              <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
-            </svg>
-            <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <path d="M20.8 14.1A8 8 0 0 1 9.9 3.2 8.5 8.5 0 1 0 20.8 14.1Z"></path>
-            </svg>
-            <span class="theme-thumb" aria-hidden="true"></span>
-          </label>
-        </div>
+        <label class="theme-switch">
+          <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode">
+          <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+          </svg>
+          <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M20.8 14.1A8 8 0 0 1 9.9 3.2 8.5 8.5 0 1 0 20.8 14.1Z"></path>
+          </svg>
+          <span class="theme-thumb" aria-hidden="true"></span>
+        </label>
       </header>
 
-      <section class="panel" aria-label="Current tab audio controls">
-        <div class="hero-top">
-          <span class="hero-label">Current tab / volume</span>
+      <section id="now" class="card now" data-level="normal" aria-label="Current tab audio controls">
+        <div class="now-tab">
+          <img id="siteIcon" class="site-icon" alt="">
+          <span id="siteName" class="site-name">Current tab</span>
           <span id="status" class="status">Normal</span>
         </div>
-        <div class="hero-readout">
-          <span id="value" class="value">100%</span>
-          <span class="volume-caption">Live control</span>
-        </div>
 
-        <div class="slider-wrap">
-          <input id="volume" type="range" min="0" max="500" step="1" value="100" aria-label="Current tab volume">
-          <div class="scale-labels" aria-hidden="true"><span class="scale-start">0%</span><span class="scale-normal">100%</span><span class="scale-end">500%</span></div>
-        </div>
-
-        <div class="presets-label">Quick levels</div>
-        <div class="presets" role="group" aria-label="Volume presets">
-          <button class="preset" data-volume="0" type="button">0</button>
-          <button class="preset" data-volume="50" type="button">50</button>
-          <button class="preset" data-volume="100" type="button">100</button>
-          <button class="preset" data-volume="200" type="button">200</button>
-          <button class="preset" data-volume="500" type="button">500</button>
-        </div>
-
-        <div class="hero-footer">
-          <span class="toolbar-label">Quick actions</span>
-          <div class="icon-actions">
-            <button id="reset" class="icon-btn icon-primary" type="button" aria-label="Reset volume to 100" title="Reset to 100">
+        <div class="readout">
+          <div class="value-wrap" aria-live="polite">
+            <span id="value" class="value">100</span><span id="unit" class="unit">%</span>
+          </div>
+          <div class="readout-actions">
+            <button id="reset" class="icon-btn" type="button" aria-label="Reset volume to 100%" title="Reset to 100%">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 3v6h6"></path>
               </svg>
-              Reset
             </button>
-            <button id="mute" class="icon-btn icon-danger" type="button" aria-label="Mute current tab" title="Mute">
+            <button id="mute" class="icon-btn icon-btn--danger" type="button" aria-label="Mute current tab" title="Mute">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>
               </svg>
-              Mute
             </button>
           </div>
         </div>
+
+        <div class="slider">
+          <input id="volume" type="range" min="0" max="500" step="1" value="100" aria-label="Current tab volume">
+          <div class="scale" aria-hidden="true"><span class="scale-start">0</span><span class="scale-normal">100</span><span class="scale-end">500</span></div>
+        </div>
+
+        <div class="segmented presets" role="group" aria-label="Volume presets">
+          <button class="preset" data-volume="0" type="button">0%</button>
+          <button class="preset" data-volume="50" type="button">50%</button>
+          <button class="preset" data-volume="100" type="button">100%</button>
+          <button class="preset" data-volume="200" type="button">200%</button>
+          <button class="preset" data-volume="500" type="button">500%</button>
+        </div>
       </section>
 
-      <section class="effects" aria-label="Audio effects">
-        <details class="effect-card">
-          <summary class="effect-summary">
-            <span class="effect-heading">
-              <span class="effect-glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9v6m4-9v12m4-16v20m4-15v10m4-7v4"></path></svg>
-              </span>
-              <span><span class="effect-name">Voice boost</span><span class="effect-hint">Clarity for speech and dialogue</span></span>
+      <section class="card effects" aria-label="Audio effects">
+        <div class="effect-row">
+          <div class="effect-label" title="Clarity for speech and dialogue">
+            <span class="effect-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9v6m4-9v12m4-16v20m4-15v10m4-7v4"></path></svg>
             </span>
-            <span class="effect-summary-right"><span id="voiceValue" class="effect-value">Off</span><span class="effect-chevron" aria-hidden="true">⌄</span></span>
-          </summary>
-          <div class="preset-group" role="group" aria-label="Voice boost presets">
+            Voice
+          </div>
+          <div class="segmented" role="group" aria-label="Voice boost">
             <button class="effect-preset" data-effect="voice" data-value="0" type="button">Off</button>
             <button class="effect-preset" data-effect="voice" data-value="35" type="button">Low</button>
             <button class="effect-preset" data-effect="voice" data-value="65" type="button">Medium</button>
             <button class="effect-preset" data-effect="voice" data-value="100" type="button">High</button>
           </div>
-        </details>
+        </div>
 
-        <details class="effect-card">
-          <summary class="effect-summary">
-            <span class="effect-heading">
-              <span class="effect-glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2-7 4-7 6 0s4 7 6 0 4-7 6 0"></path></svg>
-              </span>
-              <span><span class="effect-name">Bass boost</span><span class="effect-hint">More weight in the low end</span></span>
+        <div class="effect-row">
+          <div class="effect-label" title="More weight in the low end">
+            <span class="effect-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2-7 4-7 6 0s4 7 6 0 4-7 6 0"></path></svg>
             </span>
-            <span class="effect-summary-right"><span id="bassValue" class="effect-value">Off</span><span class="effect-chevron" aria-hidden="true">⌄</span></span>
-          </summary>
-          <div class="preset-group" role="group" aria-label="Bass boost presets">
+            Bass
+          </div>
+          <div class="segmented" role="group" aria-label="Bass boost">
             <button class="effect-preset" data-effect="bass" data-value="0" type="button">Off</button>
             <button class="effect-preset" data-effect="bass" data-value="35" type="button">Low</button>
             <button class="effect-preset" data-effect="bass" data-value="65" type="button">Medium</button>
             <button class="effect-preset" data-effect="bass" data-value="100" type="button">High</button>
           </div>
-        </details>
+        </div>
       </section>
 
-      <section class="changed-section" aria-label="Changed tabs">
-        <div class="section-head"><h2>Changed tabs</h2><span id="count" class="count">0 tabs</span></div>
-        <div id="changedTabs" class="tab-list"></div>
+      <section class="changed" aria-label="Changed tabs">
+        <div class="section-head"><h2>Changed tabs</h2><span id="count" class="count">0</span></div>
+        <div id="changedTabs" class="card tab-list"></div>
       </section>
     </main>
 

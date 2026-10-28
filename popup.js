@@ -53,17 +53,48 @@ async function sendAudioState(tabId, state) {
   await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...state });
 }
 
+const LEVEL_LABELS = { muted: 'Muted', lowered: 'Lowered', normal: 'Normal', boosted: 'Boosted' };
+
+function volumeLevel(volume) {
+  if (volume === 0) return 'muted';
+  if (volume < 100) return 'lowered';
+  if (volume === 100) return 'normal';
+  return 'boosted';
+}
+
 function updateStatus(volume) {
-  const status = document.getElementById('status');
-  if (volume === 0) status.textContent = 'Muted';
-  else if (volume < 100) status.textContent = 'Lowered';
-  else if (volume === 100) status.textContent = 'Normal';
-  else status.textContent = 'Boosted';
+  const level = volumeLevel(volume);
+  document.getElementById('now').dataset.level = level;
+  document.getElementById('status').textContent = LEVEL_LABELS[level];
+}
+
+function showVolumeValue(volume) {
+  const value = document.getElementById('value');
+  value.textContent = String(volume);
+  value.classList.remove('is-message');
+  document.getElementById('unit').hidden = false;
+}
+
+function showValueMessage(message) {
+  const value = document.getElementById('value');
+  value.textContent = message;
+  value.classList.add('is-message');
+  document.getElementById('unit').hidden = true;
+}
+
+function showActiveSite(tab) {
+  const icon = document.getElementById('siteIcon');
+  const name = document.getElementById('siteName');
+  icon.addEventListener('error', () => { icon.src = FALLBACK_FAVICON; }, { once: true });
+  icon.src = safeFaviconSrc(tab.favIconUrl);
+  name.textContent = isInjectableUrl(tab.url) ? shortUrl(tab.url) : (tab.title || 'This page');
+  name.title = tab.title || '';
 }
 
 function setUnsupportedState(url) {
   canControlActiveTab = false;
-  document.getElementById('value').textContent = 'Unavailable';
+  showValueMessage('Unavailable');
+  document.getElementById('now').dataset.level = 'unavailable';
   document.getElementById('status').textContent = isInjectableUrl(url) ? 'Inactive' : 'Unsupported';
   document.getElementById('volume').disabled = true;
   for (const node of document.querySelectorAll('button')) node.disabled = true;
@@ -169,10 +200,8 @@ function updateVolumeControls(volume) {
 }
 
 function updateEffectsView(state) {
-  document.getElementById('value').textContent = `${state.volume}%`;
+  showVolumeValue(state.volume);
   updateVolumeControls(state.volume);
-  document.getElementById('voiceValue').textContent = effectLabel(state.voiceBoost);
-  document.getElementById('bassValue').textContent = effectLabel(state.bassBoost);
   updateEffectButtons(state);
   updateStatus(state.volume);
 }
@@ -181,6 +210,23 @@ const FALLBACK_FAVICON = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2
 
 function safeFaviconSrc(url) {
   return typeof url === 'string' && /^(?:https?:|data:image\/)/i.test(url) ? url : FALLBACK_FAVICON;
+}
+
+function createMetaItem(text, className) {
+  const item = document.createElement('span');
+  item.className = className ? `meta-item ${className}` : 'meta-item';
+  item.textContent = text;
+  return item;
+}
+
+function createPlayingIndicator() {
+  const indicator = document.createElement('span');
+  indicator.className = 'meta-item eq';
+  indicator.title = 'Playing';
+  indicator.setAttribute('role', 'img');
+  indicator.setAttribute('aria-label', 'Playing');
+  for (let i = 0; i < 3; i++) indicator.appendChild(document.createElement('i'));
+  return indicator;
 }
 
 async function setChangedTabState(tabId, state, activeTabId) {
@@ -200,26 +246,35 @@ async function refreshChangedTabs(activeTabId) {
   const list = document.getElementById('changedTabs');
   const count = document.getElementById('count');
   const { items = [] } = await browser.runtime.sendMessage({ type: 'LIST_CHANGED_TABS' });
-  count.textContent = `${items.length} tab${items.length === 1 ? '' : 's'}`;
+  count.textContent = String(items.length);
   list.replaceChildren();
 
   if (!items.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.textContent = 'No tabs changed yet.';
+    const emptyTitle = document.createElement('div');
+    emptyTitle.className = 'empty-title';
+    emptyTitle.textContent = 'No tabs changed yet';
+    const emptyHint = document.createElement('div');
+    emptyHint.className = 'empty-hint';
+    emptyHint.textContent = 'Tabs you adjust will show up here.';
+    empty.appendChild(emptyTitle);
+    empty.appendChild(emptyHint);
     list.appendChild(empty);
     return;
   }
 
   for (const item of items) {
+    const isCurrent = item.tabId === activeTabId;
     const row = document.createElement('div');
-    row.className = 'tab-item';
+    row.className = isCurrent ? 'tab-item is-current' : 'tab-item';
 
     const open = document.createElement('button');
     open.className = 'tab-open';
     open.type = 'button';
     open.dataset.openTab = String(item.tabId);
-    open.setAttribute('aria-label', `Switch to ${item.title || 'Untitled tab'}`);
+    open.title = item.title || 'Untitled tab';
+    open.setAttribute('aria-label', `Switch to ${item.title || 'Untitled tab'}${isCurrent ? ' (current tab)' : ''}`);
 
     const favicon = document.createElement('img');
     favicon.className = 'tab-favicon';
@@ -228,33 +283,27 @@ async function refreshChangedTabs(activeTabId) {
     favicon.addEventListener('error', () => { favicon.src = FALLBACK_FAVICON; }, { once: true });
     favicon.src = safeFaviconSrc(item.favIconUrl);
 
-    const main = document.createElement('span');
-    main.className = 'tab-main';
+    const text = document.createElement('span');
+    text.className = 'tab-text';
 
     const title = document.createElement('span');
     title.className = 'tab-title';
-    title.textContent = `${item.title || 'Untitled tab'}${item.tabId === activeTabId ? ' • current' : ''}`;
-
-    const url = document.createElement('span');
-    url.className = 'tab-url';
-    url.textContent = shortUrl(item.url);
+    title.textContent = item.title || 'Untitled tab';
 
     const meta = document.createElement('span');
     meta.className = 'tab-meta';
+    meta.appendChild(createMetaItem(shortUrl(item.url), 'meta-host'));
+    const volume = createMetaItem(`${item.volume}%`, 'meta-volume');
+    volume.dataset.level = volumeLevel(item.volume);
+    meta.appendChild(volume);
+    if (item.voiceBoost) meta.appendChild(createMetaItem(`Voice ${effectLabel(item.voiceBoost)}`));
+    if (item.bassBoost) meta.appendChild(createMetaItem(`Bass ${effectLabel(item.bassBoost)}`));
+    if (item.audible) meta.appendChild(createPlayingIndicator());
 
-    for (const token of [`${item.volume}%`, item.voiceBoost ? `Voice ${item.voiceBoost}%` : null, item.bassBoost ? `Bass ${item.bassBoost}%` : null, item.audible ? 'Playing' : null]) {
-      if (!token) continue;
-      const pill = document.createElement('span');
-      pill.className = 'pill';
-      pill.textContent = token;
-      meta.appendChild(pill);
-    }
-
-    main.appendChild(title);
-    main.appendChild(url);
-    main.appendChild(meta);
+    text.appendChild(title);
+    text.appendChild(meta);
     open.appendChild(favicon);
-    open.appendChild(main);
+    open.appendChild(text);
 
     const actions = document.createElement('div');
     actions.className = 'mini-actions';
@@ -268,7 +317,7 @@ async function refreshChangedTabs(activeTabId) {
     muteButton.appendChild(createMuteIcon());
 
     const resetButton = document.createElement('button');
-    resetButton.className = 'mini-btn mini-primary';
+    resetButton.className = 'mini-btn';
     resetButton.type = 'button';
     resetButton.dataset.resetTab = String(item.tabId);
     resetButton.setAttribute('aria-label', 'Reset this tab audio');
@@ -330,6 +379,7 @@ async function refreshChangedTabs(activeTabId) {
   const tab = await getActiveTab();
   if (!tab || !tab.id) return;
   currentActiveTabId = tab.id;
+  showActiveSite(tab);
 
   if (!isInjectableUrl(tab.url)) {
     setUnsupportedState(tab.url);
@@ -353,13 +403,13 @@ async function refreshChangedTabs(activeTabId) {
       if (refresh) await refreshChangedTabs(tab.id);
       else scheduleChangedTabsRefresh(tab.id);
     } catch {
-      document.getElementById('value').textContent = 'Reload tab';
+      showValueMessage('Reload tab');
     }
   }
 
   slider.addEventListener('input', () => {
     const volume = Number(slider.value);
-    document.getElementById('value').textContent = `${volume}%`;
+    showVolumeValue(volume);
     updateVolumeControls(volume);
     updateStatus(volume);
     scheduleLiveUpdate(() => updateState({ volume }, { refresh: false }));
