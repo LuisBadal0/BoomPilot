@@ -32,7 +32,10 @@ Firefox gives you basic tab mute controls, but sometimes that is not enough. Boo
 
 ## How it works
 
-BoomPilot injects a content script into pages and adjusts audio/video elements on supported sites. On pages that allow Web Audio processing, it uses gain control for boosting above normal volume; on simpler pages, it falls back to direct media element controls.
+BoomPilot injects a content script into pages, including embedded frames such as video players on other sites, and adjusts their audio and video elements. Pages are left untouched until you change something.
+
+- **Web Audio** is used when the page allows it. This gives boost up to 500%, the Voice and Bass effects, and a limiter that keeps boosted audio from clipping.
+- **Direct volume control** is used for media loaded from another site without permission for audio processing, where Web Audio would play silence. Lowering and muting still work, but boost and effects can't go above 100%, and the popup shows **Limited**.
 
 ## Install
 
@@ -54,5 +57,6 @@ BoomPilot is distributed as a Mozilla-signed `.xpi` file for safer installation 
 ## Notes
 
 - Works best on sites using standard HTML5 audio or video.
+- Boost and effects are unavailable on pages where the popup shows **Limited**.
 - Some sites with DRM, heavily customized media pipelines, or other audio extensions may behave differently.
 - Boosting very high values can introduce distortion depending on the source audio.

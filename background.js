@@ -41,7 +41,7 @@ function isInjectableUrl(url = '') {
 async function ensureContentScript(tabId) {
   // content.js guards against double-injection itself.
   try {
-    await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' });
+    await browser.tabs.executeScript(tabId, { file: 'content.js', allFrames: true, runAt: 'document_idle' });
   } catch {}
 }
 

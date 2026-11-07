@@ -16,6 +16,9 @@ let refreshTimer = null;
 let currentActiveTabId = null;
 let currentState = null;
 let canControlActiveTab = true;
+// True when the page only allows plain volume control (media from another
+// origin), so boost above 100% and effects can't be applied.
+let activeTabLimited = false;
 
 function scheduleLiveUpdate(callback) {
   clearTimeout(liveUpdateTimer);
@@ -38,7 +41,7 @@ async function ensureContentScript(tabId) {
     return;
   } catch {}
   try {
-    await browser.tabs.executeScript(tabId, { file: 'content.js', runAt: 'document_idle' });
+    await browser.tabs.executeScript(tabId, { file: 'content.js', allFrames: true, runAt: 'document_idle' });
   } catch {}
 }
 
@@ -49,8 +52,9 @@ function isInjectableUrl(url = '') {
 async function sendAudioState(tabId, state) {
   if (!canControlActiveTab) throw new Error('Unsupported tab');
   await ensureContentScript(tabId);
-  await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...state });
+  const result = await browser.tabs.sendMessage(tabId, { type: 'SET_AUDIO_STATE', ...state });
   await browser.runtime.sendMessage({ type: 'SAVE_TAB_AUDIO_STATE', tabId, ...state });
+  return { limited: Boolean(result && result.limited) };
 }
 
 const LEVEL_LABELS = { muted: 'Muted', lowered: 'Lowered', normal: 'Normal', boosted: 'Boosted' };
@@ -62,10 +66,15 @@ function volumeLevel(volume) {
   return 'boosted';
 }
 
+const LIMITED_HINT = 'This page only allows volume up to 100%, so boost and effects have no effect here.';
+
 function updateStatus(volume) {
   const level = volumeLevel(volume);
   document.getElementById('now').dataset.level = level;
-  document.getElementById('status').textContent = LEVEL_LABELS[level];
+  const status = document.getElementById('status');
+  status.textContent = activeTabLimited ? 'Limited' : LEVEL_LABELS[level];
+  status.title = activeTabLimited ? LIMITED_HINT : '';
+  status.classList.toggle('is-limited', activeTabLimited);
 }
 
 function showVolumeValue(volume) {
@@ -391,12 +400,20 @@ async function refreshChangedTabs(activeTabId) {
   updateEffectsView(currentState);
   await refreshChangedTabs(tab.id);
 
+  // Ask the page (any frame) whether boost and effects are limited there.
+  browser.tabs.sendMessage(tab.id, { type: 'GET_LIMITED' }).then((result) => {
+    activeTabLimited = Boolean(result && result.limited);
+    updateStatus(currentState.volume);
+  }).catch(() => {});
+
   async function updateState(patch, { refresh = true } = {}) {
     const next = { volume: Number(slider.value), voiceBoost: currentState.voiceBoost, bassBoost: currentState.bassBoost, ...patch };
     currentState = next;
     updateEffectsView(next);
     try {
-      await sendAudioState(tab.id, next);
+      const { limited } = await sendAudioState(tab.id, next);
+      activeTabLimited = limited;
+      updateStatus(currentState.volume);
       // tabs.query + full list rebuild on every 16ms tick was a major
       // source of popup jank. Refresh immediately only for discrete
       // actions; live slider drags use a debounced refresh instead.
