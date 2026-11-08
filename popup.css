@@ -297,6 +297,27 @@ html:not(.theme-animate) .theme-thumb {
   background: var(--surface-2);
 }
 
+.icon-btn--toggle[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.icon-btn--toggle[aria-pressed="true"] svg {
+  fill: currentColor;
+}
+
+.icon-btn--toggle[aria-pressed="true"]:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.icon-btn--danger.is-muted {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 25%, transparent);
+}
+
 .icon-btn--danger:hover:not(:disabled) {
   color: var(--danger);
   background: var(--danger-soft);
@@ -635,6 +656,11 @@ html:not(.theme-animate) .theme-thumb {
 .mini-btn:hover:not(:disabled) {
   color: var(--ink);
   background: var(--surface-2);
+}
+
+.mini-danger.is-muted {
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 
 .mini-danger:hover:not(:disabled) {

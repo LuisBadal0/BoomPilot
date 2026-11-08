@@ -25,7 +25,9 @@ Firefox gives you basic tab mute controls, but sometimes that is not enough. Boo
 - **Live volume updates** while dragging the slider.
 - **Per-tab control** from 0% to 500%.
 - **Quick presets** for 0, 50, 100, 200, and 500.
-- **Quick actions** for mute and reset.
+- **Mute and unmute** that brings back the volume you had, and keeps Voice and Bass as they were.
+- **Remember per site**: save a site's volume and effects so they apply whenever you open it again, in any tab.
+- **Reset** to 100% with effects off.
 - **Changed tabs list** with site favicon, volume badge, and one-click actions.
 - **Toolbar badge** that shows changed volume and stays hidden at 100%.
 - **Active tab sync** so popup controls reflect the current tab state.
@@ -52,6 +54,7 @@ BoomPilot is distributed as a Mozilla-signed `.xpi` file for safer installation 
 - Open the BoomPilot popup from the Firefox toolbar.
 - Drag the slider for live adjustment.
 - Use the preset buttons for fast jumps.
+- Click the bookmark button to remember the current volume and effects for the site. While it is on, later changes on that site are saved too. Click it again to forget the site.
 - Use the changed-tabs list to mute, reset, or jump to tabs you already modified.
 
 ## Notes
