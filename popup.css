@@ -227,6 +227,12 @@ html:not(.theme-animate) .theme-thumb {
   background: var(--danger-soft);
 }
 
+.now .status.is-limited {
+  color: var(--boost);
+  background: var(--boost-soft);
+  cursor: help;
+}
+
 .readout {
   display: flex;
   align-items: center;
