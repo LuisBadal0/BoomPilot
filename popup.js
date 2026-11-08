@@ -152,6 +152,43 @@ function createMuteIcon() {
   return svg;
 }
 
+function createUnmuteIcon() {
+  const svg = createIconBase();
+  const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  polygon.setAttribute('points', '11 5 6 9 2 9 2 15 6 15 11 19 11 5');
+  const wave1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  wave1.setAttribute('d', 'M15.5 8.5a5 5 0 0 1 0 7');
+  const wave2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  wave2.setAttribute('d', 'M19 5a10 10 0 0 1 0 14');
+  svg.appendChild(polygon);
+  svg.appendChild(wave1);
+  svg.appendChild(wave2);
+  return svg;
+}
+
+// Mute keeps the effects and remembers the volume; unmute brings it back.
+function toggledMute(state) {
+  if (state.volume > 0) return { ...state, volume: 0, restoreVolume: state.volume };
+  const { restoreVolume, ...rest } = state;
+  return { ...rest, volume: restoreVolume || 100 };
+}
+
+function setMuteButton(button, muted, { mini = false } = {}) {
+  button.replaceChildren(muted ? createUnmuteIcon() : createMuteIcon());
+  button.classList.toggle('is-muted', muted);
+  button.title = muted ? 'Unmute' : 'Mute';
+  if (mini) button.setAttribute('aria-label', muted ? 'Unmute this tab' : 'Mute this tab');
+  else button.setAttribute('aria-label', muted ? 'Unmute current tab' : 'Mute current tab');
+}
+
+function setRememberButton({ host, remembered }) {
+  const button = document.getElementById('remember');
+  const site = host || 'this site';
+  button.setAttribute('aria-pressed', String(remembered));
+  button.title = remembered ? `Remembered for ${site}. Click to forget.` : `Remember for ${site}`;
+  button.setAttribute('aria-label', remembered ? `Forget volume for ${site}` : `Remember volume for ${site}`);
+}
+
 function getCurrentTheme() {
   const explicit = document.documentElement.getAttribute('data-theme');
   if (explicit === 'dark' || explicit === 'light') return explicit;
@@ -209,6 +246,7 @@ function updateVolumeControls(volume) {
 }
 
 function updateEffectsView(state) {
+  setMuteButton(document.getElementById('mute'), state.volume === 0);
   showVolumeValue(state.volume);
   updateVolumeControls(state.volume);
   updateEffectButtons(state);
@@ -273,7 +311,14 @@ async function refreshChangedTabs(activeTabId) {
     return;
   }
 
+  const itemStates = new Map();
   for (const item of items) {
+    itemStates.set(item.tabId, {
+      volume: item.volume,
+      voiceBoost: item.voiceBoost,
+      bassBoost: item.bassBoost,
+      restoreVolume: item.restoreVolume
+    });
     const isCurrent = item.tabId === activeTabId;
     const row = document.createElement('div');
     row.className = isCurrent ? 'tab-item is-current' : 'tab-item';
@@ -321,16 +366,14 @@ async function refreshChangedTabs(activeTabId) {
     muteButton.className = 'mini-btn mini-danger';
     muteButton.type = 'button';
     muteButton.dataset.muteTab = String(item.tabId);
-    muteButton.setAttribute('aria-label', 'Mute this tab');
-    muteButton.title = 'Mute';
-    muteButton.appendChild(createMuteIcon());
+    setMuteButton(muteButton, item.volume === 0, { mini: true });
 
     const resetButton = document.createElement('button');
     resetButton.className = 'mini-btn';
     resetButton.type = 'button';
     resetButton.dataset.resetTab = String(item.tabId);
-    resetButton.setAttribute('aria-label', 'Reset this tab audio');
-    resetButton.title = 'Reset';
+    resetButton.setAttribute('aria-label', 'Reset volume and effects for this tab');
+    resetButton.title = 'Reset volume and effects';
     resetButton.appendChild(createResetIcon());
 
     actions.appendChild(muteButton);
@@ -351,8 +394,7 @@ async function refreshChangedTabs(activeTabId) {
     node.addEventListener('click', async (event) => {
       event.stopPropagation();
       const tabId = Number(node.dataset.muteTab);
-      const next = { volume: 0, voiceBoost: 0, bassBoost: 0 };
-      await setChangedTabState(tabId, next, activeTabId);
+      await setChangedTabState(tabId, toggledMute(itemStates.get(tabId)), activeTabId);
     });
   }
 
@@ -374,6 +416,7 @@ async function refreshChangedTabs(activeTabId) {
   const effectButtons = [...document.querySelectorAll('.effect-preset')];
   const reset = document.getElementById('reset');
   const mute = document.getElementById('mute');
+  const remember = document.getElementById('remember');
   const presets = [...document.querySelectorAll('.preset')];
   const themeToggle = document.getElementById('themeToggle');
 
@@ -406,8 +449,19 @@ async function refreshChangedTabs(activeTabId) {
     updateStatus(currentState.volume);
   }).catch(() => {});
 
+  browser.runtime.sendMessage({ type: 'GET_SITE_MEMORY', tabId: tab.id })
+    .then(setRememberButton)
+    .catch(() => {});
+
   async function updateState(patch, { refresh = true } = {}) {
-    const next = { volume: Number(slider.value), voiceBoost: currentState.voiceBoost, bassBoost: currentState.bassBoost, ...patch };
+    const next = {
+      volume: Number(slider.value),
+      voiceBoost: currentState.voiceBoost,
+      bassBoost: currentState.bassBoost,
+      restoreVolume: currentState.restoreVolume,
+      ...patch
+    };
+    if (next.volume !== 0 || !Number.isFinite(next.restoreVolume)) delete next.restoreVolume;
     currentState = next;
     updateEffectsView(next);
     try {
@@ -449,7 +503,14 @@ async function refreshChangedTabs(activeTabId) {
   }
 
   reset.addEventListener('click', () => updateState({ volume: 100, voiceBoost: 0, bassBoost: 0 }));
-  mute.addEventListener('click', () => updateState({ volume: 0, voiceBoost: 0, bassBoost: 0 }));
+  mute.addEventListener('click', () => updateState(toggledMute(currentState)));
+
+  remember.addEventListener('click', async () => {
+    const enabled = remember.getAttribute('aria-pressed') !== 'true';
+    try {
+      setRememberButton(await browser.runtime.sendMessage({ type: 'SET_SITE_MEMORY', tabId: tab.id, enabled }));
+    } catch {}
+  });
 
   for (const button of presets) {
     button.addEventListener('click', () => updateState({ volume: Number(button.dataset.volume) }));
