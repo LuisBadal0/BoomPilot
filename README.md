@@ -63,3 +63,9 @@ BoomPilot is distributed as a Mozilla-signed `.xpi` file for safer installation 
 - Boost and effects are unavailable on pages where the popup shows **Limited**.
 - Some sites with DRM, heavily customized media pipelines, or other audio extensions may behave differently.
 - Boosting very high values can introduce distortion depending on the source audio.
+
+## Releasing
+
+1. Bump `version` in `manifest.json` and merge the pull request.
+2. Build the upload package with `npx web-ext build` (it uses `web-ext-config.mjs` to leave out screenshots and scripts) and upload it as a new version on addons.mozilla.org.
+3. Once Mozilla approves it, the **Release from AMO** workflow (every two hours, or run it by hand from the Actions tab) creates the GitHub release with the signed `.xpi` attached.
