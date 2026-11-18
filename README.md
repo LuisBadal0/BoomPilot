@@ -64,6 +64,17 @@ BoomPilot is distributed as a Mozilla-signed `.xpi` file for safer installation 
 - Some sites with DRM, heavily customized media pipelines, or other audio extensions may behave differently.
 - Boosting very high values can introduce distortion depending on the source audio.
 
+## Development
+
+Check a change end to end in a real Firefox before committing:
+
+```sh
+npm ci           # once: installs the test runner (selenium-webdriver)
+npm run verify   # add -- --headed to watch it
+```
+
+The run installs a temporary copy of the extension in headless Firefox, opens local test pages (same-origin, cross-origin, embedded iframe, late-added media), clicks the real popup and checks the pages' media volume, the badge and site memory. It needs Firefox installed; set `FIREFOX_BIN` if it is somewhere unusual. It can't tell what you actually hear, so boost levels and the Voice and Bass effects still need a listen. See `.claude/skills/verify/SKILL.md` for what it covers.
+
 ## Releasing
 
 1. Bump `version` in `manifest.json` and merge the pull request.
