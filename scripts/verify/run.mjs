@@ -160,8 +160,10 @@ async function expectMedia(name, page, test, options) {
 
 const near = (a, b) => Math.abs(a - b) < 0.01;
 
+// True when the media has started (on slow machines that can take a moment
+// after the page opens) and its time keeps moving.
 async function playing(page, options) {
-  const first = await media(page, options);
+  const first = await eventually(() => media(page, options), (m) => Boolean(m) && (m.time > 0 || Boolean(m.error)));
   await new Promise((r) => setTimeout(r, 600));
   const second = await media(page, options);
   return Boolean(first && second && !second.paused && second.time !== first.time && !second.error);
