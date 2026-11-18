@@ -69,14 +69,15 @@ BoomPilot is distributed as a Mozilla-signed `.xpi` file for safer installation 
 Check a change end to end in a real Firefox before committing:
 
 ```sh
-npm ci           # once: installs the test runner (selenium-webdriver)
+npm ci           # once: installs web-ext and the test runner
+npm run lint     # web-ext lint of the extension package
 npm run verify   # add -- --headed to watch it
 ```
 
-The run installs a temporary copy of the extension in headless Firefox, opens local test pages (same-origin, cross-origin, embedded iframe, late-added media), clicks the real popup and checks the pages' media volume, the badge and site memory. It needs Firefox installed; set `FIREFOX_BIN` if it is somewhere unusual. It can't tell what you actually hear, so boost levels and the Voice and Bass effects still need a listen. See `.claude/skills/verify/SKILL.md` for what it covers.
+The run installs a temporary copy of the extension in headless Firefox, opens local test pages (same-origin, cross-origin, embedded iframe, late-added media), clicks the real popup and checks the pages' media volume, the badge and site memory. Both run on every pull request. It needs Firefox installed; set `FIREFOX_BIN` if it is somewhere unusual. It can't tell what you actually hear, so boost levels and the Voice and Bass effects still need a listen. See `.claude/skills/verify/SKILL.md` for what it covers.
 
 ## Releasing
 
 1. Bump `version` in `manifest.json` and merge the pull request.
-2. Build the upload package with `npx web-ext build` (it uses `web-ext-config.mjs` to leave out screenshots and scripts) and upload it as a new version on addons.mozilla.org.
+2. Build the upload package with `npm run build` (it uses `web-ext-config.mjs` to leave out screenshots, scripts and dev files; the zip lands in `web-ext-artifacts/`) and upload it as a new version on addons.mozilla.org.
 3. Once Mozilla approves it, the **Release from AMO** workflow (every two hours, or run it by hand from the Actions tab) creates the GitHub release with the signed `.xpi` attached.

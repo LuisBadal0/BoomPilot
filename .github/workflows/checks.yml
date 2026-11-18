@@ -1,0 +1,54 @@
+name: Checks
+
+# Runs on every pull request and on main: lint the extension package, then
+# check it end to end in headless Firefox (npm run verify).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Runners have no sound card, and Firefox reports a decode error for
+      # every media element without one. A PulseAudio null sink stands in.
+      # (The runner kernel has no snd-dummy module.)
+      - name: Start a virtual audio output
+        timeout-minutes: 6
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=verify
+          pactl set-default-sink verify
+      - run: npm run verify
