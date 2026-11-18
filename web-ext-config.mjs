@@ -7,6 +7,8 @@ export default {
     'README.md',
     'LICENSE',
     'scripts',
-    'web-ext-config.mjs'
+    'web-ext-config.mjs',
+    'package.json',
+    'package-lock.json'
   ]
 };
