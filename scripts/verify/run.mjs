@@ -160,13 +160,15 @@ async function expectMedia(name, page, test, options) {
 
 const near = (a, b) => Math.abs(a - b) < 0.01;
 
-// True when the media has started (on slow machines that can take a moment
-// after the page opens) and its time keeps moving.
+// True when the media has started and its time moves on. Both can take a
+// moment on slow machines: after the page opens, and while a new Web Audio
+// context starts its output.
 async function playing(page, options) {
-  const first = await eventually(() => media(page, options), (m) => Boolean(m) && (m.time > 0 || Boolean(m.error)));
-  await new Promise((r) => setTimeout(r, 600));
-  const second = await media(page, options);
-  return Boolean(first && second && !second.paused && second.time !== first.time && !second.error);
+  const ok = (m) => Boolean(m) && !m.error && !m.paused;
+  const first = await eventually(() => media(page, options), (m) => !ok(m) || m.time > 0);
+  if (!ok(first)) return false;
+  const later = await eventually(() => media(page, options), (m) => !ok(m) || m.time > first.time + 0.1);
+  return ok(later) && later.time > first.time + 0.1;
 }
 
 async function scenario(title, fn) {
