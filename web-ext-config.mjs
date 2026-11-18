@@ -4,7 +4,7 @@ export default {
   ignoreFiles: [
     'assets/*.png',
     '*.png',
-    'README.md',
+    '*.md',
     'LICENSE',
     'scripts',
     'web-ext-config.mjs',
