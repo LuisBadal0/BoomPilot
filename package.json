@@ -1,0 +1,12 @@
+{
+  "name": "boompilot-dev",
+  "private": true,
+  "description": "Development tooling for BoomPilot. Not part of the extension package.",
+  "type": "module",
+  "scripts": {
+    "verify": "node scripts/verify/run.mjs"
+  },
+  "devDependencies": {
+    "selenium-webdriver": "^4.51.0"
+  }
+}
