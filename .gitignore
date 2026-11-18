@@ -3,3 +3,6 @@
 
 # Development dependencies (npm ci)
 node_modules/
+
+# Output of npm run build
+web-ext-artifacts/
