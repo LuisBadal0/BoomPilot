@@ -4,9 +4,12 @@
   "description": "Development tooling for BoomPilot. Not part of the extension package.",
   "type": "module",
   "scripts": {
+    "lint": "web-ext lint --config web-ext-config.mjs",
+    "build": "web-ext build --config web-ext-config.mjs --overwrite-dest",
     "verify": "node scripts/verify/run.mjs"
   },
   "devDependencies": {
-    "selenium-webdriver": "^4.51.0"
+    "selenium-webdriver": "^4.51.0",
+    "web-ext": "10.8.0"
   }
 }
