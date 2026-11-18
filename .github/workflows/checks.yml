@@ -41,12 +41,20 @@ jobs:
           cache: npm
       - run: npm ci
       # Runners have no sound card, and Firefox reports a decode error for
-      # every media element without one. A PulseAudio null sink stands in.
+      # every media element without one. A virtual ALSA card stands in; the
+      # PulseAudio null sink is the fallback when the kernel lacks it.
       - name: Start a virtual audio output
+        timeout-minutes: 6
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends pulseaudio
-          pulseaudio --start --exit-idle-time=-1
-          pactl load-module module-null-sink sink_name=verify
-          pactl set-default-sink verify
+          if sudo modprobe snd-dummy; then
+            echo "Using the snd-dummy ALSA card"
+            sudo chmod a+rw /dev/snd/*
+            ls -l /dev/snd
+          else
+            sudo apt-get update -q
+            sudo apt-get install -y -q --no-install-recommends pulseaudio
+            pulseaudio --start --exit-idle-time=-1
+            pactl load-module module-null-sink sink_name=verify
+            pactl set-default-sink verify
+          fi
       - run: npm run verify
